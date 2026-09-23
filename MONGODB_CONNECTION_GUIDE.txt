@@ -1,0 +1,346 @@
+================================================================================
+           MONGODB STEP-BY-STEP SETUP & CONNECTION GUIDE FOR ASHCOL INVENTORY
+================================================================================
+
+This guide provides step-by-step instructions to connect Ashcol Inventory to MongoDB,
+whether you want to use MongoDB Atlas (Cloud - Free) or MongoDB Community Server (Local).
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. MONGODB COMPASS: QUICK START & CONNECTION (STEP-BY-STEP)
+2. OPTION A: MONGODB ATLAS (CLOUD - RECOMMENDED)
+3. OPTION B: LOCAL MONGODB COMMUNITY SERVER
+4. EXPRESS / NODE.JS BACKEND INTEGRATION WITH MONGOOSE
+5. MONGODB COLLECTION SCHEMAS (ASHCOL INVENTORY)
+6. SEEDING INITIAL DATA INTO MONGODB
+7. CONNECTING YOUR REACT FRONTEND (ashcoinventory)
+8. COMMON TROUBLESHOOTING & FAQ
+
+================================================================================
+1. MONGODB COMPASS: QUICK START & CONNECTION (STEP-BY-STEP)
+================================================================================
+
+MongoDB Compass is the official GUI tool to view, edit, search, and manage your
+MongoDB databases visually (just like SSMS is for SQL Server).
+
+Step 1.1: Download & Install MongoDB Compass
+  1. Go to: https://www.mongodb.com/try/download/compass
+  2. Platform: Select "Windows (64-bit)" (MSI or EXE installer).
+  3. Run the installer and open MongoDB Compass.
+
+Step 1.2: Connect MongoDB Compass to Your Database
+
+  --> If you are using MongoDB Atlas (Cloud):
+      1. Copy your MongoDB Atlas connection string (from Section 2 below):
+         mongodb+srv://ashcolAdmin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/ashcol_inventory
+      2. Open MongoDB Compass.
+      3. Paste the connection string into the "New Connection" input field.
+      4. Click "Connect".
+
+  --> If you are using Local MongoDB (Community Server on your PC):
+      1. Default URI is:
+         mongodb://localhost:27017
+      2. Paste this into Compass and click "Connect".
+
+Step 1.3: Create Database & Collections in Compass
+  1. Once connected, click the "+ Create database" button (green button on the left sidebar).
+  2. Database Name:
+     Type: ashcol_inventory
+  3. Collection Name:
+     Type: products
+  4. Click "Create Database".
+
+Step 1.4: Add Extra Collections for Ashcol
+  Inside the `ashcol_inventory` database, click "+ Create collection" to create:
+  - `sales_orders`
+  - `invoices`
+  - `service_jobs`
+  - `stock_movements`
+  - `users`
+
+Step 1.5: Insert Sample Documents / JSON via Compass
+  1. Click on the `products` collection.
+  2. Click "Add Data" -> "Insert Document".
+  3. Switch to `{}` (JSON view) on the top right of the dialog.
+  4. Paste this sample product document:
+     {
+       "sku": "SKU-001",
+       "name": "Ashcol Hydraulic Pump 1500W",
+       "categoryName": "Machinery",
+       "supplierName": "Ashcol Engineering Supplies",
+       "unitOfMeasure": "PCS",
+       "unitCost": 8500,
+       "listPrice": 12000,
+       "reorderLevel": 5,
+       "stockByLocation": [
+         { "locationId": 1, "name": "Main Warehouse (Manila)", "quantityOnHand": 24 },
+         { "locationId": 2, "name": "Cebu Distribution Hub", "quantityOnHand": 8 }
+       ],
+       "isDeleted": false
+     }
+  5. Click "Insert". Compass will instantly show the record!
+
+
+================================================================================
+1. OPTION A: MONGODB ATLAS (CLOUD - FREE & NO INSTALLATION REQUIRED)
+================================================================================
+
+Step 1.1: Create MongoDB Atlas Account
+  1. Go to https://www.mongodb.com/cloud/atlas/register
+  2. Register for a free account and sign in.
+
+Step 1.2: Create a Free Cluster (M0 Free Tier)
+  1. Click "Create" or "Build a Database".
+  2. Select the "M0 Free" shared cluster (Free forever).
+  3. Choose a provider and region closest to you (e.g. AWS / Singapore or ap-southeast-1).
+  4. Leave default cluster name (e.g. Cluster0) and click "Create".
+
+Step 1.3: Set up Database User Credentials
+  1. Under "Security" -> "Database Access":
+     - Click "Add New Database User".
+     - Authentication Method: "Password".
+     - Username: e.g. "ashcolAdmin".
+     - Password: Choose a secure password (e.g. "AshcolPass123!").
+       * Note down this username and password!
+     - Built-in Role: "Read and write to any database".
+     - Click "Add User".
+
+Step 1.4: Configure Network IP Access
+  1. Under "Security" -> "Network Access":
+     - Click "Add IP Address".
+     - Click "ALLOW ACCESS FROM ANYWHERE" (adds 0.0.0.0/0) so you can connect from
+       your computer or university network.
+     - Click "Confirm".
+
+Step 1.5: Get Your MongoDB Connection String (URI)
+  1. Go to "Database" -> "Deployments" -> click "Connect".
+  2. Select "Drivers" (Node.js).
+  3. Copy your connection string. It looks like:
+     mongodb+srv://ashcolAdmin:<db_password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+  4. Replace `<db_password>` with your real password, and specify database name `ashcol_inventory`:
+     mongodb+srv://ashcolAdmin:AshcolPass123!@cluster0.xxxxx.mongodb.net/ashcol_inventory?retryWrites=true&w=majority
+
+================================================================================
+2. OPTION B: LOCAL MONGODB COMMUNITY SERVER (OFFLINE)
+================================================================================
+
+Step 2.1: Download & Install MongoDB Community
+  1. Go to https://www.mongodb.com/try/download/community
+  2. Select Windows MSI installer and download.
+  3. Run the installer:
+     - Choose "Complete" setup.
+     - Check "Install MongoDB as a Service".
+     - Check "Install MongoDB Compass" (GUI viewer).
+  4. Complete the installation.
+
+Step 2.2: Verify MongoDB Service is Running
+  1. Open PowerShell and run:
+     Get-Service MongoDB
+  2. Your local connection URI will be:
+     mongodb://localhost:27017/ashcol_inventory
+
+================================================================================
+3. EXPRESS / NODE.JS BACKEND INTEGRATION (MONGOOSE)
+================================================================================
+
+Step 3.1: Install Mongoose in your server project
+  Navigate to your server directory and run:
+    npm install mongoose
+
+Step 3.2: Configure .env
+  Create or update your server .env file:
+    PORT=3001
+    MONGO_URI=mongodb+srv://ashcolAdmin:AshcolPass123!@cluster0.xxxxx.mongodb.net/ashcol_inventory?retryWrites=true&w=majority
+    JWT_SECRET=ashcol-dev-secret
+
+Step 3.3: Database Connection Code (db.js)
+  Create `server/src/db.js`:
+  --------------------------------------------------
+  import mongoose from 'mongoose';
+
+  export async function connectDB() {
+    try {
+      const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/ashcol_inventory';
+      await mongoose.connect(uri);
+      console.log(' MongoDB Connected Successfully!');
+    } catch (err) {
+      console.error(' MongoDB Connection Error:', err);
+      process.exit(1);
+    }
+  }
+  --------------------------------------------------
+
+================================================================================
+4. MONGODB COLLECTION SCHEMAS (ASHCOL INVENTORY)
+================================================================================
+
+Here are the standard Mongoose models matching the Ashcol Inventory system:
+
+1. Product Schema (`models/Product.js`):
+--------------------------------------------------
+import mongoose from 'mongoose';
+
+const ProductSchema = new mongoose.Schema({
+  sku: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  description: { type: String, default: '' },
+  categoryName: { type: String, required: true },
+  supplierName: { type: String, default: 'General Supplier' },
+  unitOfMeasure: { type: String, default: 'PCS' },
+  unitCost: { type: Number, default: 0 },
+  listPrice: { type: Number, required: true },
+  reorderLevel: { type: Number, default: 10 },
+  stockByLocation: [
+    {
+      locationId: Number,
+      name: String,
+      quantityOnHand: { type: Number, default: 0 }
+    }
+  ],
+  isDeleted: { type: Boolean, default: false }
+}, { timestamps: true });
+
+export default mongoose.model('Product', ProductSchema);
+--------------------------------------------------
+
+2. Sales Order Schema (`models/SalesOrder.js`):
+--------------------------------------------------
+import mongoose from 'mongoose';
+
+const SalesOrderSchema = new mongoose.Schema({
+  orderNumber: { type: String, required: true, unique: true },
+  orderDate: { type: Date, default: Date.now },
+  orderStatus: { type: String, enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED'], default: 'PENDING' },
+  customerName: { type: String, required: true },
+  fulfillmentLocation: { type: String, default: 'Main Warehouse' },
+  linesTotal: { type: Number, required: true },
+  items: [
+    {
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+      sku: String,
+      productName: String,
+      quantity: Number,
+      unitPrice: Number
+    }
+  ]
+}, { timestamps: true });
+
+export default mongoose.model('SalesOrder', SalesOrderSchema);
+--------------------------------------------------
+
+3. Invoice Schema (`models/Invoice.js`):
+--------------------------------------------------
+import mongoose from 'mongoose';
+
+const InvoiceSchema = new mongoose.Schema({
+  invoiceNumber: { type: String, required: true, unique: true },
+  invoiceDate: { type: Date, default: Date.now },
+  paymentStatus: { type: String, enum: ['PAID', 'UNPAID', 'PARTIAL'], default: 'UNPAID' },
+  orderNumber: { type: String, required: true },
+  customerName: { type: String, required: true },
+  customerEmail: String,
+  fulfillingLocation: String,
+  subTotal: Number,
+  taxAmount: Number,
+  totalAmount: Number,
+  salesRep: String
+}, { timestamps: true });
+
+export default mongoose.model('Invoice', InvoiceSchema);
+--------------------------------------------------
+
+================================================================================
+5. SEEDING INITIAL DATA INTO MONGODB
+================================================================================
+
+Create a script `server/seedMongo.js`:
+--------------------------------------------------
+import mongoose from 'mongoose';
+import 'dotenv/config';
+import Product from './models/Product.js';
+
+async function seed() {
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log('Connected to MongoDB for seeding...');
+
+  await Product.deleteMany({});
+
+  await Product.insertMany([
+    {
+      sku: 'SKU-001',
+      name: 'Ashcol Hydraulic Pump 1500W',
+      categoryName: 'Machinery',
+      supplierName: 'Ashcol Engineering Supplies',
+      unitOfMeasure: 'PCS',
+      unitCost: 8500,
+      listPrice: 12000,
+      reorderLevel: 5,
+      stockByLocation: [
+        { locationId: 1, name: 'Main Warehouse (Manila)', quantityOnHand: 24 },
+        { locationId: 2, name: 'Cebu Distribution Hub', quantityOnHand: 8 }
+      ]
+    },
+    {
+      sku: 'SKU-002',
+      name: 'Heavy Duty Flange Gasket 4"',
+      categoryName: 'Fittings & Valves',
+      supplierName: 'PhilSeal Industrial Inc.',
+      unitOfMeasure: 'PCS',
+      unitCost: 150,
+      listPrice: 280,
+      reorderLevel: 25,
+      stockByLocation: [
+        { locationId: 1, name: 'Main Warehouse (Manila)', quantityOnHand: 110 }
+      ]
+    }
+  ]);
+
+  console.log('Initial products seeded successfully!');
+  process.exit(0);
+}
+
+seed();
+--------------------------------------------------
+
+Run the seed script:
+  node server/seedMongo.js
+
+================================================================================
+6. RUNNING ASHCOL INVENTORY REACT APP (ashcoinventory)
+================================================================================
+
+1. Start your Backend (port 3001):
+   cd D:\IntegprogFinal\inventory-ashcoldb\web\server
+   npm run dev
+
+2. Start your React Frontend (ashcoinventory):
+   cd D:\IntegprogFinal\ashcoinventory
+   npm start
+
+   - The React app will launch at http://localhost:3000
+   - Requests made to `/api/...` are automatically forwarded to http://localhost:3001
+     via the `"proxy": "http://localhost:3001"` configured in `package.json`.
+
+3. Demo Login Credentials:
+   - Email: admin@ashcol.local
+   - Password: admin123
+
+================================================================================
+7. COMMON TROUBLESHOOTING
+================================================================================
+
+- Error: "MongoServerError: bad auth : Authentication failed"
+  -> Verify your username and password in the connection string. Special characters
+     in passwords must be URL-encoded (e.g. @ becomes %40).
+
+- Error: "MongooseServerSelectionError: Could not connect to any servers"
+  -> Check Network Access in MongoDB Atlas. Make sure IP `0.0.0.0/0` is added and Active.
+
+- Error: "ECONNREFUSED 127.0.0.1:27017" (Local MongoDB)
+  -> Check if MongoDB service is started in Windows Services or run:
+     net start MongoDB
+
+================================================================================
+END OF GUIDE
+================================================================================
