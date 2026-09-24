@@ -25,10 +25,11 @@ import { formatMoney } from '../utils/formatters';
 
 const { Title, Text, Paragraph } = Typography;
 
-export default function PostMovementPage({ items, onAdjustStock, preselectedItemId }) {
+export default function PostMovementPage({ items, onAdjustStock, preselectedItemId, user }) {
+  const isTechnician = user?.role === 'Technician';
   const [form] = Form.useForm();
   const [selectedItemId, setSelectedItemId] = useState(preselectedItemId || '');
-  const [movementType, setMovementType] = useState('STOCK_IN');
+  const [movementType, setMovementType] = useState(isTechnician ? 'STOCK_OUT' : 'STOCK_IN');
   const [previewQty, setPreviewQty] = useState(0);
 
   // Sync when preselectedItemId changes or on mount
@@ -37,11 +38,11 @@ export default function PostMovementPage({ items, onAdjustStock, preselectedItem
       setSelectedItemId(preselectedItemId);
       form.setFieldsValue({
         itemId: preselectedItemId,
-        movementType: 'STOCK_IN',
-        reason: 'Supplier Delivery / Restock',
+        movementType: isTechnician ? 'STOCK_OUT' : 'STOCK_IN',
+        reason: isTechnician ? 'Client Installation / Site Project' : 'Supplier Delivery / Restock',
       });
     }
-  }, [preselectedItemId, form]);
+  }, [preselectedItemId, form, isTechnician]);
 
   const selectedItem = items.find(({ id }) => id === selectedItemId);
 
@@ -107,8 +108,8 @@ export default function PostMovementPage({ items, onAdjustStock, preselectedItem
               form={form}
               layout="vertical"
               initialValues={{
-                movementType: 'STOCK_IN',
-                reason: 'Supplier Delivery / Restock',
+                movementType: isTechnician ? 'STOCK_OUT' : 'STOCK_IN',
+                reason: isTechnician ? 'Client Installation / Site Project' : 'Supplier Delivery / Restock',
               }}
               onFinish={handleFinish}
               onValuesChange={(changed) => {

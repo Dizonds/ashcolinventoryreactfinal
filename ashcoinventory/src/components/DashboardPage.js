@@ -26,6 +26,52 @@ import { formatMoney } from '../utils/formatters';
 
 const { Title, Text, Paragraph } = Typography;
 
+// Snappy Animated Counter component for numbers and currency (fast ~280ms count)
+function AnimatedCounter({ endValue, duration = 280, isCurrency = false, triggerAnimation = true }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (!triggerAnimation) {
+      setDisplayValue(0);
+      return;
+    }
+
+    const end = Number(endValue) || 0;
+    if (end === 0) {
+      setDisplayValue(0);
+      return;
+    }
+
+    let startTime = null;
+    let animFrameId = null;
+
+    const animate = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      // Fast ease-out quad for quick snap to number
+      const easeProgress = 1 - Math.pow(1 - progress, 2);
+      const current = Math.round(easeProgress * end);
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        animFrameId = requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(end);
+      }
+    };
+
+    animFrameId = requestAnimationFrame(animate);
+    return () => {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    };
+  }, [endValue, duration, triggerAnimation]);
+
+  if (isCurrency) {
+    return <span>{formatMoney(displayValue)}</span>;
+  }
+  return <span>{displayValue.toLocaleString()}</span>;
+}
+
 // Animated Circular Donut Meter Component (Horizontal Row Layout)
 function AnimatedDonutCard({
   title,
@@ -259,6 +305,8 @@ export default function DashboardPage({
     return localStorage.getItem('ashcol_dashboard_view') || 'cards';
   });
   const [chartAnimTrigger, setChartAnimTrigger] = useState(false);
+  const [barAnimTrigger, setBarAnimTrigger] = useState(false);
+  const [cardAnimTrigger, setCardAnimTrigger] = useState(false);
 
   // Save selection to localStorage
   const handleViewModeChange = (mode) => {
@@ -274,6 +322,32 @@ export default function DashboardPage({
         setChartAnimTrigger(true);
       }, 50);
       return () => clearTimeout(timer);
+    }
+  }, [metricViewMode]);
+
+  // Trigger smooth rising animation when entering the bar chart tab or when loaded
+  useEffect(() => {
+    if (metricViewMode === 'bar') {
+      setBarAnimTrigger(false);
+      const timer = setTimeout(() => {
+        setBarAnimTrigger(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setBarAnimTrigger(false);
+    }
+  }, [metricViewMode]);
+
+  // Trigger smooth counting animation when entering default cards view
+  useEffect(() => {
+    if (metricViewMode === 'cards') {
+      setCardAnimTrigger(false);
+      const timer = setTimeout(() => {
+        setCardAnimTrigger(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setCardAnimTrigger(false);
     }
   }, [metricViewMode]);
 
@@ -471,7 +545,15 @@ export default function DashboardPage({
                     <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>View in Catalog →</Tag>
                   </div>
                 }
-                value={acUnits.length}
+                valueRender={() => (
+                  <span style={{ fontWeight: 700, fontSize: 24 }}>
+                    <AnimatedCounter
+                      endValue={acUnits.length}
+                      duration={240}
+                      triggerAnimation={cardAnimTrigger}
+                    />
+                  </span>
+                )}
                 prefix={<AppstoreOutlined style={{ color: '#2563eb', marginRight: 6 }} />}
                 suffix={<span style={{ fontSize: 13, color: token.colorTextTertiary }}>models</span>}
                 valueStyle={{ fontWeight: 700 }}
@@ -506,7 +588,15 @@ export default function DashboardPage({
                     <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>View in Catalog →</Tag>
                   </div>
                 }
-                value={materials.length}
+                valueRender={() => (
+                  <span style={{ fontWeight: 700, fontSize: 24 }}>
+                    <AnimatedCounter
+                      endValue={materials.length}
+                      duration={240}
+                      triggerAnimation={cardAnimTrigger}
+                    />
+                  </span>
+                )}
                 prefix={<ToolOutlined style={{ color: '#d97706', marginRight: 6 }} />}
                 suffix={<span style={{ fontSize: 13, color: token.colorTextTertiary }}>items</span>}
                 valueStyle={{ fontWeight: 700 }}
@@ -543,7 +633,15 @@ export default function DashboardPage({
                     <Tag color="error" style={{ fontSize: 10, margin: 0 }}>See Alerts ↓</Tag>
                   </div>
                 }
-                value={lowStockItems.length}
+                valueRender={() => (
+                  <span style={{ fontWeight: 700, fontSize: 24, color: lowStockItems.length > 0 ? '#dc2626' : undefined }}>
+                    <AnimatedCounter
+                      endValue={lowStockItems.length}
+                      duration={220}
+                      triggerAnimation={cardAnimTrigger}
+                    />
+                  </span>
+                )}
                 prefix={<AlertOutlined style={{ color: '#ef4444', marginRight: 6 }} />}
                 suffix={<span style={{ fontSize: 13, color: '#ef4444' }}>critical</span>}
                 valueStyle={{ fontWeight: 700, color: lowStockItems.length > 0 ? '#dc2626' : undefined }}
@@ -578,12 +676,27 @@ export default function DashboardPage({
                     <Tag color="success" style={{ fontSize: 10, margin: 0 }}>Catalog Overview →</Tag>
                   </div>
                 }
-                value={formatMoney(totalValuation)}
+                valueRender={() => (
+                  <span style={{ fontWeight: 700, color: '#059669', fontSize: 22 }}>
+                    <AnimatedCounter
+                      endValue={totalValuation}
+                      duration={320}
+                      isCurrency={true}
+                      triggerAnimation={cardAnimTrigger}
+                    />
+                  </span>
+                )}
                 prefix={<DollarOutlined style={{ color: '#059669', marginRight: 6 }} />}
                 valueStyle={{ fontWeight: 700, color: '#059669', fontSize: 22 }}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
-                <ArrowUpOutlined style={{ color: '#059669' }} /> {totalPhysicalUnits} physical units in warehouse
+                <ArrowUpOutlined style={{ color: '#059669' }} />{' '}
+                <AnimatedCounter
+                  endValue={totalPhysicalUnits}
+                  duration={260}
+                  triggerAnimation={cardAnimTrigger}
+                />{' '}
+                physical units in warehouse
               </div>
             </Card>
           </Col>
@@ -730,7 +843,8 @@ export default function DashboardPage({
                     }}
                   >
                     {barData.map((bar, idx) => {
-                      const barHeightPercent = chartCeiling > 0 ? (bar.units / chartCeiling) * 100 : 0;
+                      const targetHeightPercent = chartCeiling > 0 ? (bar.units / chartCeiling) * 100 : 0;
+                      const currentHeightPercent = barAnimTrigger ? Math.max(targetHeightPercent, 3) : 0;
                       const handleBarClick = () => {
                         if (bar.isAlert) {
                           const alertTableEl = document.getElementById('low-stock-register');
@@ -761,24 +875,26 @@ export default function DashboardPage({
                               fontWeight: 700,
                               color: bar.units > 0 ? bar.color : token.colorTextTertiary,
                               marginBottom: 6,
-                              transition: 'all 0.3s',
+                              opacity: barAnimTrigger ? 1 : 0,
+                              transform: barAnimTrigger ? 'translateY(0)' : 'translateY(8px)',
+                              transition: `opacity 0.4s ease-out ${0.15 + idx * 0.08}s, transform 0.4s ease-out ${0.15 + idx * 0.08}s`,
                             }}
                           >
                             {bar.units}
                           </div>
 
-                          {/* The Real Vertical Column Bar (Clickable) */}
+                          {/* The Real Vertical Column Bar (Animated & Clickable) */}
                           <div
                             style={{
                               width: '100%',
-                              height: `${Math.max(barHeightPercent, 3)}%`,
+                              height: `${currentHeightPercent}%`,
                               backgroundColor: bar.color,
                               borderRadius: '6px 6px 0 0',
-                              boxShadow: `0 3px 10px ${bar.color}35`,
-                              transition: 'all 0.25s ease-out, height 0.9s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              boxShadow: barAnimTrigger && bar.units > 0 ? `0 3px 12px ${bar.color}40` : 'none',
+                              transition: `height 0.85s cubic-bezier(0.34, 1.25, 0.64, 1) ${idx * 0.07}s, transform 0.25s ease-out, filter 0.25s ease-out, opacity 0.4s ease-out`,
                               cursor: 'pointer',
                               position: 'relative',
-                              opacity: bar.units > 0 ? 1 : 0.4,
+                              opacity: !barAnimTrigger ? 0 : bar.units > 0 ? 1 : 0.35,
                             }}
                             onClick={handleBarClick}
                             onMouseEnter={(e) => {

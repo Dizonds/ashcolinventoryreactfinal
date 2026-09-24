@@ -67,11 +67,7 @@ export default function Sidebar({ activePage, setActivePage, onLogout, isDark })
           style={{
             width: 42,
             height: 42,
-            borderRadius: 8,
             objectFit: 'contain',
-            border: `1px solid ${token.colorBorderSecondary}`,
-            background: '#ffffff',
-            padding: 2,
           }}
           onError={(e) => {
             // fallback if public path varies

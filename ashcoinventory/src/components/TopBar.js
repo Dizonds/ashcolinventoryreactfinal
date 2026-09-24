@@ -54,16 +54,21 @@ export default function TopBar({ user, searchTerm, onSearchChange, isDark, onTog
           />
         </Tooltip>
 
-        <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 600, padding: '2px 8px' }}>
+        <Tag
+          color={role === 'Technician' ? 'blue' : 'cyan'}
+          style={{ borderRadius: 6, fontWeight: 600, padding: '2px 8px' }}
+        >
           {(role || 'OFFICER').toUpperCase()}
         </Tag>
 
         <Space size="small">
           <Avatar
             style={{
-              backgroundColor: '#059669',
+              backgroundColor: role === 'Technician' ? '#2563eb' : '#059669',
               fontWeight: 600,
-              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.2)',
+              boxShadow: role === 'Technician'
+                ? '0 2px 6px rgba(37, 99, 235, 0.25)'
+                : '0 2px 6px rgba(5, 150, 105, 0.2)',
             }}
           >
             {userInitials || <UserOutlined />}

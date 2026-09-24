@@ -6,13 +6,40 @@ const { Title, Text, Paragraph } = Typography;
 
 export default function LoginPage({ onLogin }) {
   const { token } = theme.useToken();
+  const [form] = Form.useForm();
 
   const handleFinish = (values) => {
-    onLogin({
-      email: values.email || 'admin@ashcol.local',
-      role: 'Inventory Manager',
-      fullName: 'Ashcol Warehouse Officer',
-    });
+    const email = (values.email || '').trim().toLowerCase();
+    if (email === 'tech@ashcol.local' || email.includes('tech')) {
+      onLogin({
+        email: values.email,
+        role: 'Technician',
+        fullName: 'Alex Reyes (Field Technician)',
+      });
+    } else {
+      onLogin({
+        email: values.email || 'admin@ashcol.local',
+        role: 'Inventory Manager',
+        fullName: 'Ashcol Warehouse Officer',
+      });
+    }
+  };
+
+  const handleQuickLogin = (email, password) => {
+    form.setFieldsValue({ email, password });
+    if (email.includes('tech')) {
+      onLogin({
+        email,
+        role: 'Technician',
+        fullName: 'Alex Reyes (Field Technician)',
+      });
+    } else {
+      onLogin({
+        email,
+        role: 'Inventory Manager',
+        fullName: 'Ashcol Warehouse Officer',
+      });
+    }
   };
 
   return (
@@ -29,14 +56,14 @@ export default function LoginPage({ onLogin }) {
       <Card
         style={{
           width: '100%',
-          maxWidth: 440,
+          maxWidth: 460,
           borderRadius: 16,
           boxShadow: '0 20px 40px -15px rgba(0,0,0,0.07), 0 0 1px 1px rgba(0,0,0,0.04)',
           border: '1px solid #e2e8f0',
         }}
         bordered={false}
       >
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div
             style={{
               width: 56,
@@ -58,11 +85,12 @@ export default function LoginPage({ onLogin }) {
             Ashcol Aircon Inventory
           </Title>
           <Text type="secondary" style={{ fontSize: 14, display: 'block', marginTop: 6 }}>
-            Minimalist warehouse stocks, supplies & logistics management
+            Warehouse stocks, materials & technician logistics
           </Text>
         </div>
 
         <Form
+          form={form}
           layout="vertical"
           size="large"
           initialValues={{
@@ -78,7 +106,7 @@ export default function LoginPage({ onLogin }) {
           >
             <Input
               prefix={<MailOutlined style={{ color: token.colorTextTertiary }} />}
-              placeholder="e.g. admin@ashcol.local"
+              placeholder="e.g. admin@ashcol.local or tech@ashcol.local"
             />
           </Form.Item>
 
@@ -93,7 +121,7 @@ export default function LoginPage({ onLogin }) {
             />
           </Form.Item>
 
-          <Form.Item style={{ marginTop: 24 }}>
+          <Form.Item style={{ marginTop: 20 }}>
             <Button
               type="primary"
               htmlType="submit"
@@ -119,13 +147,63 @@ export default function LoginPage({ onLogin }) {
             marginTop: 8,
           }}
         >
-          <Space direction="vertical" size={2}>
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
-              Quick Demo Access
-            </Text>
-            <Paragraph style={{ margin: 0, fontSize: 12 }} copyable>
-              admin@ashcol.local / admin123
-            </Paragraph>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 8 }}>
+            Quick Demo Accounts (Click to Sign In):
+          </Text>
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <div
+              onClick={() => handleQuickLogin('admin@ashcol.local', 'admin123')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#059669')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#cbd5e1')}
+            >
+              <div>
+                <Text strong style={{ fontSize: 12, color: '#0f172a' }}>
+                  🔑 Admin / Warehouse Officer
+                </Text>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Full control (Add/delete, prices, ledgers)</div>
+              </div>
+              <Button orientation="right" size="small" type="primary" ghost style={{ borderRadius: 6, fontSize: 11 }}>
+                Login
+              </Button>
+            </div>
+
+            <div
+              onClick={() => handleQuickLogin('tech@ashcol.local', 'tech123')}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#2563eb')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#cbd5e1')}
+            >
+              <div>
+                <Text strong style={{ fontSize: 12, color: '#0f172a' }}>
+                  🔧 Field Technician / Staff
+                </Text>
+                <div style={{ fontSize: 11, color: '#64748b' }}>Log equipment check-out & browse stock</div>
+              </div>
+              <Button orientation="right" size="small" type="primary" ghost style={{ borderRadius: 6, fontSize: 11, borderColor: '#2563eb', color: '#2563eb' }}>
+                Login
+              </Button>
+            </div>
           </Space>
         </Card>
       </Card>

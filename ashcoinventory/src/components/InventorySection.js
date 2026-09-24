@@ -34,6 +34,7 @@ const { Title, Text, Paragraph } = Typography;
 export default function InventorySection({
   items,
   brands = [],
+  user,
   onAddItem,
   onDeleteItem,
   onAddBrand,
@@ -41,6 +42,7 @@ export default function InventorySection({
   onNavigateToPostMovement,
   preselectedFilter,
 }) {
+  const isTechnician = user?.role === 'Technician';
   const [selectedType, setSelectedType] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrandFilter, setSelectedBrandFilter] = useState('');
@@ -243,7 +245,7 @@ export default function InventorySection({
     {
       title: 'Actions',
       key: 'actions',
-      width: 140,
+      width: isTechnician ? 90 : 140,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -255,21 +257,23 @@ export default function InventorySection({
           >
             Specs
           </Button>
-          <Popconfirm
-            title="Delete Inventory Item"
-            description={`Are you sure you want to delete ${record.sku}?`}
-            onConfirm={() => onDeleteItem(record.id)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
+          {!isTechnician && (
+            <Popconfirm
+              title="Delete Inventory Item"
+              description={`Are you sure you want to delete ${record.sku}?`}
+              onConfirm={() => onDeleteItem(record.id)}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -299,25 +303,31 @@ export default function InventorySection({
         <Space wrap>
           {onNavigateToPostMovement && (
             <Button
+              type={isTechnician ? 'primary' : 'default'}
               icon={<SwapOutlined />}
               onClick={onNavigateToPostMovement}
-              style={{ fontWeight: 600 }}
+              style={{
+                fontWeight: 600,
+                backgroundColor: isTechnician ? '#2563eb' : undefined,
+              }}
             >
               Post Stock Movement
             </Button>
           )}
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleOpenAddModal}
-            style={{
-              backgroundColor: '#059669',
-              fontWeight: 600,
-              borderRadius: 8,
-            }}
-          >
-            Register New Item
-          </Button>
+          {!isTechnician && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleOpenAddModal}
+              style={{
+                backgroundColor: '#059669',
+                fontWeight: 600,
+                borderRadius: 8,
+              }}
+            >
+              Register New Item
+            </Button>
+          )}
         </Space>
       </div>
 

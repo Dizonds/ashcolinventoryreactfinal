@@ -164,6 +164,7 @@ function MainApp({ isDark, onToggleTheme }) {
             <DashboardPage
               items={items}
               movements={movements}
+              user={currentUser}
               onRestockItem={(itemId) => {
                 setTargetMovementItemId(itemId);
                 handlePageChange('post_movement');
@@ -179,6 +180,7 @@ function MainApp({ isDark, onToggleTheme }) {
             <InventorySection
               items={items}
               brands={brands}
+              user={currentUser}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
               onAddBrand={handleAddBrand}
@@ -194,6 +196,7 @@ function MainApp({ isDark, onToggleTheme }) {
           {activePage === 'post_movement' && (
             <PostMovementPage
               items={items}
+              user={currentUser}
               onAdjustStock={handleAdjustStock}
               preselectedItemId={targetMovementItemId}
             />
