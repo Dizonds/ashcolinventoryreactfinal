@@ -10,20 +10,15 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/ashcol_inv
 app.use(cors());
 app.use(express.json());
 
-// ----------------------------------------------------------------------------
-// MONGOOSE SCHEMAS (Ashcol AC Inventory System - 100% CRUD Focused)
-// ----------------------------------------------------------------------------
-
-// 1. AC Inventory Items (Aircon Units, Parts, Refrigerants, Piping)
 const productSchema = new mongoose.Schema(
   {
     sku: { type: String, required: true },
     name: { type: String, required: true },
-    category: { type: String, default: 'Split Type' }, // Split Type, Window Type, Floor Mounted, Portable, Spare Parts, Refrigerants, Piping
-    itemType: { type: String, default: 'AC Unit' },    // 'AC Unit' or 'Material / Part'
+    category: { type: String, default: 'Split Type' },
+    itemType: { type: String, default: 'AC Unit' },
     brand: { type: String, default: 'Carrier' },
-    capacity: { type: String, default: '1.0 HP' },     // 1.0 HP, 1.5 HP, 11.3 kg, 15m
-    unitOfMeasure: { type: String, default: 'UNIT' },  // UNIT, ROLL, CAN, PCS, BOX
+    capacity: { type: String, default: '1.0 HP' },
+    unitOfMeasure: { type: String, default: 'UNIT' },
     unitCost: { type: Number, default: 0 },
     listPrice: { type: Number, default: 0 },
     quantity: { type: Number, default: 0 },
@@ -32,12 +27,11 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 2. Stock Movements Log (Stock-In Delivery & Stock-Out Consumption)
 const movementSchema = new mongoose.Schema(
   {
     sku: { type: String, required: true },
     itemName: { type: String, required: true },
-    movementType: { type: String, default: 'STOCK_IN' }, // 'STOCK_IN' or 'STOCK_OUT'
+    movementType: { type: String, default: 'STOCK_IN' },
     quantityDelta: { type: Number, required: true },
     reason: { type: String, default: 'Warehouse Delivery' },
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
@@ -45,7 +39,6 @@ const movementSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 3. Brands (Partnered Aircon & Parts Brands)
 const brandSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true, trim: true },
@@ -57,15 +50,10 @@ const Product = mongoose.model('Product', productSchema, 'products');
 const Movement = mongoose.model('Movement', movementSchema, 'stock_movements');
 const Brand = mongoose.model('Brand', brandSchema, 'brands');
 
-// ----------------------------------------------------------------------------
-// REST API ENDPOINTS
-// ----------------------------------------------------------------------------
-
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, app: 'Ashcol AC Inventory System' });
+  res.json({ ok: true });
 });
 
-// READ: Get all inventory items
 app.get('/api/products', async (req, res) => {
   try {
     const items = await Product.find().sort({ createdAt: -1 });
@@ -90,7 +78,6 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// CREATE: Add new item to inventory
 app.post('/api/products', async (req, res) => {
   try {
     const { sku, name, category, itemType, brand, capacity, unitOfMeasure, unitCost, listPrice, quantity, reorderLevel } = req.body;
@@ -109,7 +96,6 @@ app.post('/api/products', async (req, res) => {
     });
     await newItem.save();
 
-    // Log movement
     if (Number(quantity) > 0) {
       await Movement.create({
         sku: newItem.sku,
@@ -139,7 +125,6 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
-// UPDATE: Adjust stock level & log movement
 app.patch('/api/products/:id/stock', async (req, res) => {
   try {
     const { id } = req.params;
@@ -151,7 +136,6 @@ app.patch('/api/products/:id/stock', async (req, res) => {
     item.quantity = Math.max(0, item.quantity + change);
     await item.save();
 
-    // Record movement
     await Movement.create({
       sku: item.sku,
       itemName: item.name,
@@ -166,7 +150,6 @@ app.patch('/api/products/:id/stock', async (req, res) => {
   }
 });
 
-// UPDATE: Edit item price & specifications
 app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -177,7 +160,6 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
-// DELETE: Remove item from inventory
 app.delete('/api/products/:id', async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
@@ -187,7 +169,6 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
-// READ: Stock movements log
 app.get('/api/movements', async (req, res) => {
   try {
     const logs = await Movement.find().sort({ createdAt: -1 }).limit(100);
@@ -207,11 +188,6 @@ app.get('/api/movements', async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------------------
-// BRANDS API (CRUD)
-// ----------------------------------------------------------------------------
-
-// READ: Get all brands
 app.get('/api/brands', async (req, res) => {
   try {
     const brands = await Brand.find().sort({ name: 1 });
@@ -226,7 +202,6 @@ app.get('/api/brands', async (req, res) => {
   }
 });
 
-// CREATE: Add new brand
 app.post('/api/brands', async (req, res) => {
   try {
     const { name } = req.body;
@@ -235,7 +210,6 @@ app.post('/api/brands', async (req, res) => {
     }
 
     const trimmed = name.trim();
-    // Check if already exists (case-insensitive)
     const existing = await Brand.findOne({ name: { $regex: new RegExp(`^${trimmed}$`, 'i') } });
     if (existing) {
       return res.json({ id: existing._id.toString(), name: existing.name });
@@ -248,7 +222,6 @@ app.post('/api/brands', async (req, res) => {
   }
 });
 
-// DELETE: Remove a brand
 app.delete('/api/brands/:id', async (req, res) => {
   try {
     await Brand.findByIdAndDelete(req.params.id);
@@ -258,13 +231,9 @@ app.delete('/api/brands/:id', async (req, res) => {
   }
 });
 
-// Connect to MongoDB
 mongoose
   .connect(MONGO_URI)
   .then(async () => {
-    console.log(' Ashcol AC Inventory DB Connected at:', MONGO_URI);
-
-    // Ensure partner brands exist
     try {
       const count = await Brand.countDocuments();
       if (count === 0) {
@@ -284,19 +253,18 @@ mongoose
           'Generic Parts',
         ];
         await Brand.insertMany(defaultBrands.map((name) => ({ name })));
-        console.log(' Seeded default partner AC brands into MongoDB.');
       }
     } catch (e) {
-      console.log(' Brands initialization check:', e.message);
+      console.log(e.message);
     }
 
     app.listen(PORT, () => {
-      console.log(` Ashcol AC Inventory API running on http://localhost:${PORT}`);
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
-    console.error(' DB Connection Error:', err.message);
+    console.error('DB Connection Error:', err.message);
     app.listen(PORT, () => {
-      console.log(` Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
     });
   });
