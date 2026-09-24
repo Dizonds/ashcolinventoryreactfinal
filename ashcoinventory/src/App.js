@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { ConfigProvider, App as AntdApp, message, Layout, theme } from 'antd';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import LoginPage from './components/LoginPage';
@@ -8,18 +9,28 @@ import InventorySection from './components/InventorySection';
 import PostMovementPage from './components/PostMovementPage';
 import MovementsPage from './components/MovementsPage';
 
+const { Content } = Layout;
+const { defaultAlgorithm, darkAlgorithm } = theme;
 const API_BASE = 'http://localhost:3001/api';
 
-function App() {
+function MainApp({ isDark, onToggleTheme }) {
   const [currentUser, setCurrentUser] = useState({
     email: 'admin@ashcol.local',
     role: 'Inventory Manager',
     fullName: 'Ashcol Warehouse Officer',
   });
 
-  const [activePage, setActivePage] = useState('inventory');
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem('ashcol_active_tab') || 'dashboard';
+  });
   const [globalSearch, setGlobalSearch] = useState('');
-  const [theme, setTheme] = useState('light');
+  const [targetMovementItemId, setTargetMovementItemId] = useState(null);
+  const [inventoryFilter, setInventoryFilter] = useState(null);
+
+  const handlePageChange = (page) => {
+    setActivePage(page);
+    localStorage.setItem('ashcol_active_tab', page);
+  };
 
   const [items, setItems] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -50,15 +61,9 @@ function App() {
 
   useEffect(() => {
     loadData();
-    const intervalId = setInterval(loadData, 3000);
+    const intervalId = setInterval(loadData, 4000);
     return () => clearInterval(intervalId);
   }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-  };
 
   const handleAddItem = (newItem) => {
     axios
@@ -67,10 +72,10 @@ function App() {
         const saved = res.data;
         if (saved && saved.id) {
           setItems([saved, ...items]);
-          alert(`Item "${saved.name}" successfully added to inventory!`);
+          message.success(`Item "${saved.name}" registered to inventory!`);
         }
       })
-      .catch((err) => alert('Error adding item: ' + err.message));
+      .catch((err) => message.error('Failed to add item: ' + err.message));
   };
 
   const handleAddBrand = (brandName) => {
@@ -85,10 +90,10 @@ function App() {
           if (matches.length === 0) {
             setBrands([...brands, savedBrand]);
           }
-          alert(`Brand "${savedBrand.name}" registered to database!`);
+          message.info(`Brand "${savedBrand.name}" registered!`);
         }
       })
-      .catch((err) => alert('Error saving brand: ' + err.message));
+      .catch((err) => console.error('Error saving brand:', err.message));
   };
 
   const handleAdjustStock = (itemId, delta, reason) => {
@@ -98,30 +103,27 @@ function App() {
         const resData = res.data;
         setItems(
           items.map((item) => {
-            const { id } = item;
-            if (id === itemId) {
+            if (item.id === itemId) {
               return { ...item, quantity: resData.quantity };
             }
             return item;
           })
         );
-        alert('Stock movement successfully posted!');
+        message.success('Stock movement successfully posted & saved to ledger!');
+        setTargetMovementItemId(null);
         setActivePage('movements');
       })
-      .catch((err) => alert('Error adjusting stock: ' + err.message));
+      .catch((err) => message.error('Error adjusting stock: ' + err.message));
   };
 
   const handleDeleteItem = (itemId) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this inventory item?');
-    if (!confirmDelete) return;
-
     axios
       .delete(`${API_BASE}/products/${itemId}`)
       .then(() => {
         setItems(items.filter(({ id }) => id !== itemId));
-        alert('Item removed from inventory!');
+        message.success('Item deleted from inventory.');
       })
-      .catch((err) => alert('Error deleting item: ' + err.message));
+      .catch((err) => message.error('Error deleting item: ' + err.message));
   };
 
   if (!currentUser) {
@@ -129,51 +131,110 @@ function App() {
   }
 
   return (
-    <div className="layout">
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: isDark ? '#0f172a' : '#f8fafc',
+        color: isDark ? '#f8fafc' : '#0f172a',
+        transition: 'background 0.2s',
+      }}
+    >
       <Sidebar
         activePage={activePage}
-        setActivePage={setActivePage}
-        onLogout={() => setCurrentUser(null)}
+        setActivePage={handlePageChange}
+        onLogout={() => {
+          setCurrentUser(null);
+          message.info('Logged out successfully');
+        }}
+        isDark={isDark}
       />
 
-      <div className="main-wrapper">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar
           user={currentUser}
-          theme={theme}
-          onToggleTheme={toggleTheme}
           searchTerm={globalSearch}
           onSearchChange={(val) => setGlobalSearch(val)}
+          isDark={isDark}
+          onToggleTheme={onToggleTheme}
         />
 
-        {activePage === 'dashboard' && (
-          <DashboardPage items={items} movements={movements} />
-        )}
+        <Content style={{ flex: 1, background: isDark ? '#0b1120' : '#f8fafc', transition: 'background 0.2s' }}>
+          {activePage === 'dashboard' && (
+            <DashboardPage
+              items={items}
+              movements={movements}
+              onRestockItem={(itemId) => {
+                setTargetMovementItemId(itemId);
+                handlePageChange('post_movement');
+              }}
+              onNavigateToInventoryWithFilter={(filter) => {
+                setInventoryFilter(filter);
+                handlePageChange('inventory');
+              }}
+            />
+          )}
 
-        {activePage === 'inventory' && (
-          <InventorySection
-            items={items}
-            brands={brands}
-            onAddItem={handleAddItem}
-            onDeleteItem={handleDeleteItem}
-            onAddBrand={handleAddBrand}
-            searchTerm={globalSearch}
-            onNavigateToPostMovement={() => setActivePage('post_movement')}
-          />
-        )}
+          {activePage === 'inventory' && (
+            <InventorySection
+              items={items}
+              brands={brands}
+              onAddItem={handleAddItem}
+              onDeleteItem={handleDeleteItem}
+              onAddBrand={handleAddBrand}
+              searchTerm={globalSearch}
+              preselectedFilter={inventoryFilter}
+              onNavigateToPostMovement={() => {
+                setTargetMovementItemId(null);
+                handlePageChange('post_movement');
+              }}
+            />
+          )}
 
-        {activePage === 'post_movement' && (
-          <PostMovementPage
-            items={items}
-            onAdjustStock={handleAdjustStock}
-          />
-        )}
+          {activePage === 'post_movement' && (
+            <PostMovementPage
+              items={items}
+              onAdjustStock={handleAdjustStock}
+              preselectedItemId={targetMovementItemId}
+            />
+          )}
 
-        {activePage === 'movements' && (
-          <MovementsPage movements={movements} />
-        )}
+          {activePage === 'movements' && (
+            <MovementsPage movements={movements} />
+          )}
+        </Content>
       </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [isDark, setIsDark] = useState(false);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => !prev);
+  };
+
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: isDark ? darkAlgorithm : defaultAlgorithm,
+        token: {
+          colorPrimary: '#059669',
+          colorSuccess: '#10b981',
+          colorWarning: '#f59e0b',
+          colorError: '#ef4444',
+          colorInfo: '#2563eb',
+          borderRadius: 8,
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          colorBgContainer: isDark ? '#1e293b' : '#ffffff',
+          colorBgLayout: isDark ? '#0b1120' : '#f8fafc',
+        },
+      }}
+    >
+      <AntdApp>
+        <MainApp isDark={isDark} onToggleTheme={toggleTheme} />
+      </AntdApp>
+    </ConfigProvider>
+  );
+}
