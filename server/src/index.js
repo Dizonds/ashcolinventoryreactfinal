@@ -153,7 +153,27 @@ app.patch('/api/products/:id/stock', async (req, res) => {
 app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const existing = await Product.findById(id);
+    if (!existing) return res.status(404).json({ error: 'Item not found' });
+
+    const prevQty = Number(existing.quantity) || 0;
+    const hasNewQty = req.body.quantity !== undefined && req.body.quantity !== null;
+    const newQty = hasNewQty ? Number(req.body.quantity) : prevQty;
+    const delta = newQty - prevQty;
+
     const updated = await Product.findByIdAndUpdate(id, req.body, { new: true });
+
+    // If stock quantity was modified via direct specs edit, automatically record an audit movement
+    if (delta !== 0) {
+      await Movement.create({
+        sku: updated.sku,
+        itemName: updated.name,
+        movementType: delta > 0 ? 'STOCK_IN' : 'STOCK_OUT',
+        quantityDelta: delta,
+        reason: req.body.stockEditReason || `Manual Adjustment in Specs (${delta > 0 ? '+' : ''}${delta})`,
+      });
+    }
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });

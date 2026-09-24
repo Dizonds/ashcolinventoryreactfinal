@@ -173,7 +173,7 @@ html[data-theme='dark'] .dashboard-card--green {
 body {
   transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.sidebar, .dashboard-card, table, tr, td, th, .top-bar-search, .search-input, .login-card, .btn-signin, .nav-item {
+.sidebar, .dashboard-card, .top-bar-search, .search-input, .login-card, .btn-signin, .nav-item {
   transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
               border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
               color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
@@ -970,8 +970,19 @@ thead th {
   text-transform: uppercase;
   color: var(--text-muted);
 }
-tbody tr:hover td {
+table:not(.ant-table-wrapper table) tbody tr:hover td {
   background: var(--surface2);
+}
+
+/* Ant Design Table & Descriptions clean hover highlight (subtle gray) */
+.ant-table-tbody > tr:hover > td,
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  background-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+.ant-descriptions-row:hover > th,
+.ant-descriptions-row:hover > td {
+  background-color: rgba(148, 163, 184, 0.06) !important;
 }
 
 .mono {

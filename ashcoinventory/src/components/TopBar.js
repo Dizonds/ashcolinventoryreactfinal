@@ -1,10 +1,10 @@
 import React from 'react';
-import { Input, Avatar, Tag, Space, Typography, Tooltip, Button, theme } from 'antd';
-import { SearchOutlined, UserOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
+import { Avatar, Tag, Space, Typography, Tooltip, Button, theme } from 'antd';
+import { UserOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
-export default function TopBar({ user, searchTerm, onSearchChange, isDark, onToggleTheme }) {
+export default function TopBar({ user, isDark, onToggleTheme }) {
   const { token } = theme.useToken();
   const { role, fullName } = user || {};
   const userInitials = (fullName || 'Admin')
@@ -30,17 +30,13 @@ export default function TopBar({ user, searchTerm, onSearchChange, isDark, onTog
         transition: 'background 0.2s, border-color 0.2s',
       }}
     >
-      <div style={{ width: '100%', maxWidth: 420 }}>
-        <Input
-          prefix={<SearchOutlined style={{ color: token.colorTextTertiary, marginRight: 4 }} />}
-          placeholder="Search AC models, brands, parts, SKU..."
-          allowClear
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          style={{
-            borderRadius: 8,
-          }}
-        />
+      <div>
+        <Text strong style={{ fontSize: 16, letterSpacing: '-0.3px', color: token.colorText }}>
+          Ashcol Warehouse Management
+        </Text>
+        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8, display: 'inline-block' }}>
+          · Aircon Supply & Distribution
+        </Text>
       </div>
 
       <Space size="middle" align="center">

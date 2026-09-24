@@ -23,7 +23,6 @@ function MainApp({ isDark, onToggleTheme }) {
   const [activePage, setActivePage] = useState(() => {
     return localStorage.getItem('ashcol_active_tab') || 'dashboard';
   });
-  const [globalSearch, setGlobalSearch] = useState('');
   const [targetMovementItemId, setTargetMovementItemId] = useState(null);
   const [inventoryFilter, setInventoryFilter] = useState(null);
 
@@ -116,6 +115,36 @@ function MainApp({ isDark, onToggleTheme }) {
       .catch((err) => message.error('Error adjusting stock: ' + err.message));
   };
 
+  const handleUpdateItem = (updatedItem) => {
+    return axios
+      .put(`${API_BASE}/products/${updatedItem.id}`, updatedItem)
+      .then((res) => {
+        const savedData = res.data;
+        const normalized = {
+          ...savedData,
+          id: savedData.id || (savedData._id ? savedData._id.toString() : updatedItem.id),
+        };
+        setItems((prev) =>
+          prev.map((item) => (item.id === updatedItem.id ? { ...item, ...normalized } : item))
+        );
+        // If stock delta occurred, reload movements to sync the Stock Ledger
+        if (updatedItem.stockEditReason) {
+          axios
+            .get(`${API_BASE}/movements`)
+            .then((mRes) => {
+              if (Array.isArray(mRes.data)) setMovements(mRes.data);
+            })
+            .catch(() => {});
+        }
+        message.success('Item specifications updated successfully!');
+        return normalized;
+      })
+      .catch((err) => {
+        message.error('Error updating item: ' + err.message);
+        throw err;
+      });
+  };
+
   const handleDeleteItem = (itemId) => {
     axios
       .delete(`${API_BASE}/products/${itemId}`)
@@ -153,8 +182,6 @@ function MainApp({ isDark, onToggleTheme }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar
           user={currentUser}
-          searchTerm={globalSearch}
-          onSearchChange={(val) => setGlobalSearch(val)}
           isDark={isDark}
           onToggleTheme={onToggleTheme}
         />
@@ -183,8 +210,8 @@ function MainApp({ isDark, onToggleTheme }) {
               user={currentUser}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
+              onUpdateItem={handleUpdateItem}
               onAddBrand={handleAddBrand}
-              searchTerm={globalSearch}
               preselectedFilter={inventoryFilter}
               onNavigateToPostMovement={() => {
                 setTargetMovementItemId(null);
@@ -212,10 +239,20 @@ function MainApp({ isDark, onToggleTheme }) {
 }
 
 export default function App() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    const savedTheme = localStorage.getItem('ashcol_theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    return false;
+  });
 
   const toggleTheme = () => {
-    setIsDark((prev) => !prev);
+    setIsDark((prev) => {
+      const nextTheme = !prev;
+      localStorage.setItem('ashcol_theme', nextTheme ? 'dark' : 'light');
+      return nextTheme;
+    });
   };
 
   return (
@@ -232,6 +269,16 @@ export default function App() {
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           colorBgContainer: isDark ? '#1e293b' : '#ffffff',
           colorBgLayout: isDark ? '#0b1120' : '#f8fafc',
+        },
+        components: {
+          Menu: {
+            collapsedWidth: 72,
+            collapsedIconSize: 20,
+            itemMarginInline: 8,
+          },
+          Table: {
+            rowHoverBg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+          },
         },
       }}
     >

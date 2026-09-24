@@ -26,6 +26,10 @@ import {
   DeleteOutlined,
   FilterOutlined,
   ClearOutlined,
+  SearchOutlined,
+  SaveOutlined,
+  CheckOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { formatMoney } from '../utils/formatters';
 
@@ -37,12 +41,13 @@ export default function InventorySection({
   user,
   onAddItem,
   onDeleteItem,
+  onUpdateItem,
   onAddBrand,
-  searchTerm,
   onNavigateToPostMovement,
   preselectedFilter,
 }) {
   const isTechnician = user?.role === 'Technician';
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrandFilter, setSelectedBrandFilter] = useState('');
@@ -65,6 +70,75 @@ export default function InventorySection({
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [inspectItem, setInspectItem] = useState(null);
+  const [inspectFormValues, setInspectFormValues] = useState({});
+  const [editingField, setEditingField] = useState(null); // which field is currently in edit mode
+  const [isSavingInspect, setIsSavingInspect] = useState(false);
+  // Check if current form values actually differ from original inspectItem
+  const isInspectDirty = React.useMemo(() => {
+    if (!inspectItem) return false;
+    const fields = [
+      'name',
+      'itemType',
+      'category',
+      'brand',
+      'capacity',
+      'unitOfMeasure',
+      'quantity',
+      'unitCost',
+      'listPrice',
+      'reorderLevel',
+    ];
+    return fields.some((f) => {
+      const orig = inspectItem[f] ?? '';
+      const curr = inspectFormValues[f] ?? '';
+      return String(orig) !== String(curr);
+    });
+  }, [inspectItem, inspectFormValues]);
+
+  // When opening inspect item modal, initialize editable values
+  const handleOpenInspect = (record) => {
+    setInspectItem(record);
+    setInspectFormValues({ ...record });
+    setEditingField(null);
+  };
+
+  const handleInspectFieldChange = (field, value) => {
+    setInspectFormValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveInspect = async () => {
+    if (!onUpdateItem || !inspectItem) return;
+    setIsSavingInspect(true);
+    try {
+      const newQty = Number(inspectFormValues.quantity ?? inspectItem.quantity) || 0;
+      const oldQty = Number(inspectItem.quantity) || 0;
+      const delta = newQty - oldQty;
+
+      const updated = {
+        ...inspectItem,
+        ...inspectFormValues,
+        quantity: newQty,
+        unitCost: Number(inspectFormValues.unitCost) || 0,
+        listPrice: Number(inspectFormValues.listPrice) || 0,
+        reorderLevel: Number(inspectFormValues.reorderLevel) || 0,
+        stockEditReason:
+          delta !== 0
+            ? `Manual Adjustment in Specs (${delta > 0 ? '+' : ''}${delta})`
+            : undefined,
+      };
+      await onUpdateItem(updated);
+      setInspectItem(updated);
+      setInspectFormValues({ ...updated });
+      setEditingField(null);
+    } catch (e) {
+      // Error handled in App.js
+    } finally {
+      setIsSavingInspect(false);
+    }
+  };
 
   // Form for item creation
   const [form] = Form.useForm();
@@ -74,14 +148,6 @@ export default function InventorySection({
     form.resetFields();
     form.setFieldsValue({
       itemType: 'AC Unit',
-      category: 'Split Type',
-      capacity: '1.0 HP',
-      unitOfMeasure: 'UNIT',
-      brand: 'Carrier',
-      unitCost: 18000,
-      listPrice: 24000,
-      quantity: 10,
-      reorderLevel: 3,
     });
     setItemTypeWatch('AC Unit');
     setIsAddModalOpen(true);
@@ -89,27 +155,10 @@ export default function InventorySection({
 
   const handleTypeSwitch = (newType) => {
     setItemTypeWatch(newType);
-    if (newType === 'AC Unit') {
-      form.setFieldsValue({
-        itemType: 'AC Unit',
-        category: 'Split Type',
-        unitOfMeasure: 'UNIT',
-        capacity: '1.0 HP',
-        brand: 'Carrier',
-        unitCost: 18000,
-        listPrice: 24000,
-      });
-    } else {
-      form.setFieldsValue({
-        itemType: 'Material / Part',
-        category: 'Compressors',
-        unitOfMeasure: 'PCS',
-        capacity: '11.3 kg',
-        brand: 'Generic Parts',
-        unitCost: 3500,
-        listPrice: 5000,
-      });
-    }
+    form.setFieldsValue({
+      itemType: newType,
+      category: undefined,
+    });
   };
 
   const handleFormFinish = (values) => {
@@ -252,7 +301,7 @@ export default function InventorySection({
             type="text"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => setInspectItem(record)}
+            onClick={() => handleOpenInspect(record)}
             style={{ color: '#2563eb' }}
           >
             Specs
@@ -358,13 +407,22 @@ export default function InventorySection({
             </Text>
           </div>
 
+          <Input
+            prefix={<SearchOutlined style={{ color: '#94a3b8', marginRight: 4 }} />}
+            placeholder="Search SKU, model, or part name..."
+            allowClear
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: 260, borderRadius: 8 }}
+          />
+
           <Select
             value={selectedType}
             onChange={(val) => {
               setSelectedType(val);
               setSelectedCategory('');
             }}
-            style={{ width: 190 }}
+            style={{ width: 170 }}
           >
             <Select.Option value="ALL">All Item Types</Select.Option>
             <Select.Option value="AC Unit">AC Units</Select.Option>
@@ -410,11 +468,12 @@ export default function InventorySection({
             )}
           </Select>
 
-          {(selectedType !== 'ALL' || selectedCategory !== '' || selectedBrandFilter !== '') && (
+          {(searchTerm !== '' || selectedType !== 'ALL' || selectedCategory !== '' || selectedBrandFilter !== '') && (
             <Button
               type="dashed"
               icon={<ClearOutlined />}
               onClick={() => {
+                setSearchTerm('');
                 setSelectedType('ALL');
                 setSelectedCategory('');
                 setSelectedBrandFilter('');
@@ -454,61 +513,414 @@ export default function InventorySection({
           <Space>
             <EyeOutlined style={{ color: '#2563eb' }} />
             <Text strong>Item Specifications</Text>
+            <Tag color="cyan" style={{ fontSize: 11, marginLeft: 6 }}>
+              💡 Double-click any field to edit
+            </Tag>
           </Space>
         }
+        centered
         open={Boolean(inspectItem)}
-        onCancel={() => setInspectItem(null)}
+        onCancel={() => {
+          setInspectItem(null);
+          setEditingField(null);
+          setInspectFormValues({});
+        }}
         footer={[
-          <Button key="close" type="primary" onClick={() => setInspectItem(null)}>
+          isInspectDirty && (
+            <Button
+              key="save"
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={isSavingInspect}
+              onClick={handleSaveInspect}
+              style={{
+                backgroundColor: '#059669',
+                borderColor: '#059669',
+              }}
+            >
+              Save
+            </Button>
+          ),
+          <Button
+            key="close"
+            onClick={() => {
+              setInspectItem(null);
+              setEditingField(null);
+              setInspectFormValues({});
+            }}
+          >
             Done
           </Button>,
-        ]}
-        width={600}
+        ].filter(Boolean)}
+        width={660}
       >
         {inspectItem && (
           <div>
-            <Title level={4} style={{ margin: '8px 0 2px' }}>
-              {inspectItem.name}
-            </Title>
-            <Text type="secondary" style={{ fontSize: 13 }}>
+            <div
+              style={{
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: 4,
+                transition: 'background 0.2s',
+              }}
+              onDoubleClick={() => setEditingField('name')}
+              title="Double click to edit Item Name"
+            >
+              {editingField === 'name' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
+                  <Input
+                    size="small"
+                    value={inspectFormValues.name}
+                    autoFocus
+                    onChange={(e) => handleInspectFieldChange('name', e.target.value)}
+                    onPressEnter={() => setEditingField(null)}
+                    onBlur={() => setEditingField(null)}
+                    style={{ fontWeight: 600, fontSize: 15 }}
+                  />
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<CheckOutlined style={{ color: '#059669' }} />}
+                    onClick={() => setEditingField(null)}
+                  />
+                </div>
+              ) : (
+                <Title
+                  level={4}
+                  style={{
+                    margin: '6px 0 2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>{inspectFormValues.name}</span>
+                  <EditOutlined style={{ fontSize: 13, color: '#94a3b8' }} />
+                </Title>
+              )}
+            </div>
+
+            <Text type="secondary" style={{ fontSize: 13, paddingLeft: 8 }}>
               SKU: {inspectItem.sku}
             </Text>
 
-            <Divider style={{ margin: '16px 0' }} />
+            <Divider style={{ margin: '14px 0' }} />
 
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Type">
-                <Tag color={inspectItem.itemType === 'AC Unit' ? 'blue' : 'orange'}>
-                  {inspectItem.itemType}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Category">{inspectItem.category}</Descriptions.Item>
-              <Descriptions.Item label="Brand">{inspectItem.brand}</Descriptions.Item>
-              <Descriptions.Item label="Specs / Capacity">
-                {inspectItem.capacity || '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Unit of Measure">
-                {inspectItem.unitOfMeasure || 'UNIT'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Current Stock">
-                <Text
-                  strong
-                  style={{
-                    color:
-                      inspectItem.quantity <= (inspectItem.reorderLevel || 3) ? '#dc2626' : '#059669',
-                  }}
+            <Descriptions
+              bordered
+              size="small"
+              column={2}
+              style={{ tableLayout: 'fixed', width: '100%' }}
+              labelStyle={{ width: '28%', verticalAlign: 'middle', whiteSpace: 'nowrap' }}
+              contentStyle={{ width: '22%', minHeight: 46, height: 46, verticalAlign: 'middle' }}
+            >
+              {/* Type */}
+              <Descriptions.Item
+                label="Type"
+                span={1}
+              >
+                <div
+                  onDoubleClick={() => setEditingField('itemType')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Type"
                 >
-                  {inspectItem.quantity} {inspectItem.unitOfMeasure}
-                </Text>
+                  {editingField === 'itemType' ? (
+                    <Select
+                      size="small"
+                      style={{ width: '100%' }}
+                      value={inspectFormValues.itemType}
+                      autoFocus
+                      defaultOpen
+                      onChange={(val) => {
+                        handleInspectFieldChange('itemType', val);
+                        setEditingField(null);
+                      }}
+                      onBlur={() => setEditingField(null)}
+                      options={[
+                        { value: 'AC Unit', label: 'AC Unit' },
+                        { value: 'Material / Part', label: 'Material / Part' },
+                      ]}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <Tag color={inspectFormValues.itemType === 'AC Unit' ? 'blue' : 'orange'}>
+                        {inspectFormValues.itemType}
+                      </Tag>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
               </Descriptions.Item>
-              <Descriptions.Item label="Cost Price">
-                {formatMoney(inspectItem.unitCost)}
+
+              {/* Category */}
+              <Descriptions.Item label="Category" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('category')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Category"
+                >
+                  {editingField === 'category' ? (
+                    <Select
+                      size="small"
+                      style={{ width: '100%' }}
+                      value={inspectFormValues.category}
+                      autoFocus
+                      defaultOpen
+                      onChange={(val) => {
+                        handleInspectFieldChange('category', val);
+                        setEditingField(null);
+                      }}
+                      onBlur={() => setEditingField(null)}
+                    >
+                      {inspectFormValues.itemType === 'AC Unit' ? (
+                        <>
+                          <Select.Option value="Split Type">Split Type</Select.Option>
+                          <Select.Option value="Window Type">Window Type</Select.Option>
+                          <Select.Option value="Floor Mounted">Floor Mounted</Select.Option>
+                          <Select.Option value="Portable">Portable AC</Select.Option>
+                        </>
+                      ) : (
+                        <>
+                          <Select.Option value="Compressors">Compressors</Select.Option>
+                          <Select.Option value="Refrigerants">Refrigerants (Freon)</Select.Option>
+                          <Select.Option value="Installation Materials">Installation Materials</Select.Option>
+                          <Select.Option value="Copper Tubing">Copper Tubing</Select.Option>
+                        </>
+                      )}
+                    </Select>
+                  ) : (
+                    <Space size={4}>
+                      <span>{inspectFormValues.category || '—'}</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
               </Descriptions.Item>
-              <Descriptions.Item label="Selling Price">
-                <Text strong>{formatMoney(inspectItem.listPrice)}</Text>
+
+              {/* Brand */}
+              <Descriptions.Item label="Brand" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('brand')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Brand"
+                >
+                  {editingField === 'brand' ? (
+                    <Select
+                      size="small"
+                      showSearch
+                      allowClear
+                      style={{ width: '100%' }}
+                      value={inspectFormValues.brand}
+                      autoFocus
+                      defaultOpen
+                      onChange={(val) => {
+                        handleInspectFieldChange('brand', val);
+                        setEditingField(null);
+                      }}
+                      onBlur={() => setEditingField(null)}
+                      options={brands.map((b) => ({ value: b.name, label: b.name }))}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <span>{inspectFormValues.brand || '—'}</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
               </Descriptions.Item>
-              <Descriptions.Item label="Safety Min Level">
-                {inspectItem.reorderLevel || 3} units
+
+              {/* Specs / Capacity */}
+              <Descriptions.Item label="Specs / Capacity" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('capacity')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Specs"
+                >
+                  {editingField === 'capacity' ? (
+                    <Input
+                      size="small"
+                      value={inspectFormValues.capacity}
+                      autoFocus
+                      onChange={(e) => handleInspectFieldChange('capacity', e.target.value)}
+                      onPressEnter={() => setEditingField(null)}
+                      onBlur={() => setEditingField(null)}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <span>{inspectFormValues.capacity || '—'}</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
+              </Descriptions.Item>
+
+              {/* Unit of Measure */}
+              <Descriptions.Item label="Unit of Measure" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('unitOfMeasure')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Unit of Measure"
+                >
+                  {editingField === 'unitOfMeasure' ? (
+                    <Input
+                      size="small"
+                      value={inspectFormValues.unitOfMeasure}
+                      autoFocus
+                      onChange={(e) => handleInspectFieldChange('unitOfMeasure', e.target.value)}
+                      onPressEnter={() => setEditingField(null)}
+                      onBlur={() => setEditingField(null)}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <span>{inspectFormValues.unitOfMeasure || 'UNIT'}</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
+              </Descriptions.Item>
+
+              {/* Current Stock */}
+              <Descriptions.Item label="Current Stock" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('quantity')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Current Stock count"
+                >
+                  {editingField === 'quantity' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                      <InputNumber
+                        size="small"
+                        min={0}
+                        style={{ width: 100 }}
+                        value={inspectFormValues.quantity ?? inspectItem.quantity}
+                        autoFocus
+                        onChange={(val) => handleInspectFieldChange('quantity', val)}
+                        onPressEnter={() => setEditingField(null)}
+                        onBlur={() => setEditingField(null)}
+                      />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {inspectFormValues.unitOfMeasure || 'UNIT'}
+                      </Text>
+                    </div>
+                  ) : (
+                    <Space size={6} align="center">
+                      <Text
+                        strong
+                        style={{
+                          fontSize: 14,
+                          color:
+                            (inspectFormValues.quantity ?? inspectItem.quantity) <= (inspectFormValues.reorderLevel || 3)
+                              ? '#dc2626'
+                              : '#059669',
+                        }}
+                      >
+                        {inspectFormValues.quantity ?? inspectItem.quantity}{' '}
+                        {inspectFormValues.unitOfMeasure || 'UNIT'}
+                      </Text>
+                      {inspectFormValues.quantity !== undefined &&
+                        inspectFormValues.quantity !== inspectItem.quantity && (
+                          <Tag
+                            color={
+                              inspectFormValues.quantity > inspectItem.quantity
+                                ? 'green'
+                                : 'volcano'
+                            }
+                            style={{ fontSize: 11, padding: '0 4px', margin: 0 }}
+                          >
+                            {inspectFormValues.quantity > inspectItem.quantity ? '+' : ''}
+                            {inspectFormValues.quantity - inspectItem.quantity}
+                          </Tag>
+                        )}
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
+              </Descriptions.Item>
+
+              {/* Cost Price */}
+              <Descriptions.Item label="Cost Price" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('unitCost')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Cost Price"
+                >
+                  {editingField === 'unitCost' ? (
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      style={{ width: '100%' }}
+                      value={inspectFormValues.unitCost}
+                      autoFocus
+                      onChange={(val) => handleInspectFieldChange('unitCost', val)}
+                      onPressEnter={() => setEditingField(null)}
+                      onBlur={() => setEditingField(null)}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <span>{formatMoney(inspectFormValues.unitCost)}</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
+              </Descriptions.Item>
+
+              {/* Selling Price */}
+              <Descriptions.Item label="Selling Price" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('listPrice')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Selling Price"
+                >
+                  {editingField === 'listPrice' ? (
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      style={{ width: '100%' }}
+                      value={inspectFormValues.listPrice}
+                      autoFocus
+                      onChange={(val) => handleInspectFieldChange('listPrice', val)}
+                      onPressEnter={() => setEditingField(null)}
+                      onBlur={() => setEditingField(null)}
+                    />
+                  ) : (
+                    <Space size={4}>
+                      <Text strong>{formatMoney(inspectFormValues.listPrice)}</Text>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
+              </Descriptions.Item>
+
+              {/* Safety Min Level */}
+              <Descriptions.Item label="Safety Min Level" span={1}>
+                <div
+                  onDoubleClick={() => setEditingField('reorderLevel')}
+                  style={{ cursor: 'pointer', width: '100%', minHeight: 24, display: 'flex', alignItems: 'center' }}
+                  title="Double click to edit Safety Min Level"
+                >
+                  {editingField === 'reorderLevel' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                      <InputNumber
+                        size="small"
+                        min={0}
+                        style={{ width: 100 }}
+                        value={inspectFormValues.reorderLevel}
+                        autoFocus
+                        onChange={(val) => handleInspectFieldChange('reorderLevel', val)}
+                        onPressEnter={() => setEditingField(null)}
+                        onBlur={() => setEditingField(null)}
+                      />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        units
+                      </Text>
+                    </div>
+                  ) : (
+                    <Space size={4}>
+                      <span>{inspectFormValues.reorderLevel || 3} units</span>
+                      <EditOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
+                    </Space>
+                  )}
+                </div>
               </Descriptions.Item>
             </Descriptions>
           </div>
@@ -523,6 +935,7 @@ export default function InventorySection({
             <Text strong>Register New Inventory Item</Text>
           </Space>
         }
+        centered
         open={isAddModalOpen}
         onCancel={() => setIsAddModalOpen(false)}
         footer={null}
@@ -571,9 +984,9 @@ export default function InventorySection({
               <Form.Item
                 label={<Text strong>Category</Text>}
                 name="category"
-                rules={[{ required: true }]}
+                rules={[{ required: true, message: 'Please select a category!' }]}
               >
-                <Select>
+                <Select placeholder="Select category">
                   {itemTypeWatch === 'AC Unit' ? (
                     <>
                       <Select.Option value="Split Type">Split Type</Select.Option>
@@ -601,17 +1014,9 @@ export default function InventorySection({
               >
                 <Select
                   showSearch
-                  placeholder="Select or enter brand"
+                  allowClear
+                  placeholder="Brand"
                   options={brands.map((b) => ({ value: b.name, label: b.name }))}
-                  dropdownRender={(menu) => (
-                    <div>
-                      {menu}
-                      <Divider style={{ margin: '8px 0' }} />
-                      <div style={{ padding: '0 8px 4px', fontSize: 12, color: '#64748b' }}>
-                        💡 New brands are automatically registered to MongoDB.
-                      </div>
-                    </div>
-                  )}
                 />
               </Form.Item>
             </Col>
@@ -633,12 +1038,12 @@ export default function InventorySection({
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label={<Text strong>Cost Price (₱)</Text>} name="unitCost">
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber style={{ width: '100%' }} min={0} placeholder="0.00" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label={<Text strong>Retail Selling Price (₱)</Text>} name="listPrice">
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber style={{ width: '100%' }} min={0} placeholder="0.00" />
               </Form.Item>
             </Col>
           </Row>
@@ -646,12 +1051,12 @@ export default function InventorySection({
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label={<Text strong>Initial Stock Qty</Text>} name="quantity">
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber style={{ width: '100%' }} min={0} placeholder="0" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label={<Text strong>Reorder Alert Level</Text>} name="reorderLevel">
-                <InputNumber style={{ width: '100%' }} min={1} />
+                <InputNumber style={{ width: '100%' }} min={1} placeholder="3" />
               </Form.Item>
             </Col>
           </Row>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Form, Input, Button, Typography, Space, theme } from 'antd';
 import { LockOutlined, MailOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function LoginPage({ onLogin }) {
   const { token } = theme.useToken();

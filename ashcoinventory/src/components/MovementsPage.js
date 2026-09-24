@@ -1,10 +1,41 @@
-import React from 'react';
-import { Card, Table, Tag, Typography, Space, Empty } from 'antd';
-import { HistoryOutlined, ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Card, Table, Tag, Typography, Space, Empty, Input, Select, Button } from 'antd';
+import {
+  HistoryOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  SearchOutlined,
+  ClearOutlined,
+} from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 
-export default function MovementsPage({ movements }) {
+export default function MovementsPage({ movements = [] }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [movementFilter, setMovementFilter] = useState('ALL');
+
+  const filteredMovements = movements.filter((m) => {
+    // Type filter
+    if (movementFilter === 'STOCK_IN' && m.movementType !== 'STOCK_IN') return false;
+    if (movementFilter === 'STOCK_OUT' && m.movementType !== 'STOCK_OUT') return false;
+
+    // Search filter
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+
+    const sku = (m.sku || '').toLowerCase();
+    const name = (m.itemName || '').toLowerCase();
+    const reason = (m.reason || '').toLowerCase();
+    const date = (m.date || '').toLowerCase();
+
+    return (
+      sku.includes(term) ||
+      name.includes(term) ||
+      reason.includes(term) ||
+      date.includes(term)
+    );
+  });
+
   const columns = [
     {
       title: 'Timestamp / Date',
@@ -92,8 +123,41 @@ export default function MovementsPage({ movements }) {
           <Space>
             <HistoryOutlined style={{ color: '#059669' }} />
             <Text strong style={{ fontSize: 16 }}>
-              Movement Transaction Records ({movements.length})
+              Movement Transaction Records ({filteredMovements.length})
             </Text>
+          </Space>
+        }
+        extra={
+          <Space wrap>
+            <Input
+              prefix={<SearchOutlined style={{ color: '#94a3b8', marginRight: 4 }} />}
+              placeholder="Search SKU, item, notes, date..."
+              allowClear
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: 260, borderRadius: 8 }}
+            />
+            <Select
+              value={movementFilter}
+              onChange={(val) => setMovementFilter(val)}
+              style={{ width: 140 }}
+            >
+              <Select.Option value="ALL">All Types</Select.Option>
+              <Select.Option value="STOCK_IN">Stock In (+)</Select.Option>
+              <Select.Option value="STOCK_OUT">Stock Out (-)</Select.Option>
+            </Select>
+            {(searchTerm !== '' || movementFilter !== 'ALL') && (
+              <Button
+                type="dashed"
+                icon={<ClearOutlined />}
+                onClick={() => {
+                  setSearchTerm('');
+                  setMovementFilter('ALL');
+                }}
+              >
+                Reset
+              </Button>
+            )}
           </Space>
         }
         style={{
@@ -104,7 +168,7 @@ export default function MovementsPage({ movements }) {
         bordered={false}
       >
         <Table
-          dataSource={movements}
+          dataSource={filteredMovements}
           columns={columns}
           rowKey="id"
           pagination={{ pageSize: 15, showSizeChanger: true, pageSizeOptions: ['10', '15', '25', '50'] }}
@@ -112,7 +176,11 @@ export default function MovementsPage({ movements }) {
             emptyText: (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No stock movements recorded yet. Movements appear here automatically when items are added or adjusted."
+                description={
+                  searchTerm || movementFilter !== 'ALL'
+                    ? 'No movement records matching your search query or filter.'
+                    : 'No stock movements recorded yet. Movements appear here automatically when items are added or adjusted.'
+                }
               />
             ),
           }}
