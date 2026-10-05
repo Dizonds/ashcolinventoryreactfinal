@@ -282,7 +282,7 @@ export default function InventorySection({
                 setLoadError("");
               }}
             >
-              🚐 Add to Van
+              🚐 Add to Vehicle
             </Button>
           )}
           {canManage && (
@@ -722,7 +722,7 @@ export default function InventorySection({
 
       <Modal
         open={Boolean(loadVanItem)}
-        title={loadVanItem ? `🚐 Load to Service Van: ${loadVanItem.name}` : ""}
+        title={loadVanItem ? `🚐 Load to Service Vehicle: ${loadVanItem.name}` : ""}
         onCancel={() => setLoadVanItem(null)}
         footer={null}
         destroyOnClose
@@ -742,10 +742,10 @@ export default function InventorySection({
                   productId: loadVanItem.id,
                   quantity: loadQuantity,
                   reason: loadNotes
-                    ? `Van Loadout: ${loadNotes}`
-                    : `Stock loaded to van ${selectedVanId}`,
+                    ? `Vehicle Loadout: ${loadNotes}`
+                    : `Stock loaded to vehicle ${selectedVanId}`,
                 },
-                `Successfully loaded ${loadQuantity} ${loadVanItem.unitOfMeasure} of ${loadVanItem.name} to Service Van!`,
+                `Successfully loaded ${loadQuantity} ${loadVanItem.unitOfMeasure} of ${loadVanItem.name} to Service Vehicle!`,
               )
                 .then(() => {
                   setLoadVanItem(null);
@@ -773,7 +773,7 @@ export default function InventorySection({
               </Typography.Text>
             </div>
             <label className="field" style={{ display: "block", marginBottom: 12 }}>
-              Target Service Van
+              Target Service Vehicle
               <Select
                 value={selectedVanId}
                 onChange={setSelectedVanId}

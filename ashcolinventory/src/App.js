@@ -161,7 +161,7 @@ export default function App() {
   const navigation = [
     { id: "dashboard", label: "Overview" },
     { id: "inventory", label: "Inventory Catalog" },
-    { id: "service_vans", label: "Service Vans" },
+    { id: "service_vehicles", label: "Service Vehicles" },
     { id: "compatibility", label: "Model Matching" },
     { id: "suppliers", label: "Suppliers & Vendors" },
     { id: "requests", label: "Material Requests" },
@@ -323,7 +323,7 @@ export default function App() {
                           }}
                         />
                       )}
-                      {page === "service_vans" && (
+                      {(page === "service_vehicles" || page === "service_vans") && (
                         <ServiceVansPage
                           branches={branches}
                           branchId={branchId}

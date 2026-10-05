@@ -159,10 +159,10 @@ export default function ServiceVansPage({
 
   return (
     <Card
-      title="🚐 Mobile Service Vans Inventory & Field Tracking"
+      title="🚐 Mobile Service Vehicles Inventory & Field Tracking"
       extra={
         <Space wrap>
-          <strong>Select Van:</strong>
+          <strong>Select Vehicle:</strong>
           <Select
             value={selectedVanId || undefined}
             onChange={setSelectedVanId}
@@ -184,7 +184,7 @@ export default function ServiceVansPage({
                 setNewVanModal(true);
               }}
             >
-              + Add New Service Van
+              + Add New Service Vehicle
             </Button>
           )}
         </Space>
@@ -202,7 +202,7 @@ export default function ServiceVansPage({
       {currentVan && (
         <Card
           type="inner"
-          title={`Van Details: ${currentVan.name}`}
+          title={`Vehicle Details: ${currentVan.name}`}
           style={{ marginBottom: 16, background: "rgba(5, 150, 105, 0.04)" }}
           extra={
             <Space wrap>
@@ -433,10 +433,10 @@ export default function ServiceVansPage({
         )}
       </Modal>
 
-      {/* Register new Service Van Modal */}
+      {/* Register new Service Vehicle Modal */}
       <Modal
         open={newVanModal}
-        title="🚐 Register New Service Van"
+        title="🚐 Register New Service Vehicle"
         onCancel={() => setNewVanModal(false)}
         footer={null}
         destroyOnClose
@@ -457,7 +457,7 @@ export default function ServiceVansPage({
                 driverName: newVanDriver.trim(),
                 status: "AVAILABLE",
               },
-              `New Service Van "${newVanName}" registered successfully!`,
+              `New Service Vehicle "${newVanName}" registered successfully!`,
             )
               .then(() => {
                 setNewVanModal(false);
@@ -478,7 +478,7 @@ export default function ServiceVansPage({
             />
           )}
           <label className="field" style={{ display: "block", marginBottom: 12 }}>
-            Van ID / Code
+            Vehicle ID / Code
             <Input
               required
               placeholder="e.g. VAN-03"
@@ -488,10 +488,10 @@ export default function ServiceVansPage({
             />
           </label>
           <label className="field" style={{ display: "block", marginBottom: 12 }}>
-            Van Name / Description
+            Vehicle Name / Description
             <Input
               required
-              placeholder="e.g. Field Service Van Charlie"
+              placeholder="e.g. Field Service Vehicle Charlie"
               value={newVanName}
               onChange={(e) => setNewVanName(e.target.value)}
               style={{ marginTop: 4 }}
@@ -529,7 +529,7 @@ export default function ServiceVansPage({
               loading={newVanBusy}
               disabled={!newVanId.trim() || !newVanName.trim()}
             >
-              Register Van
+              Register Vehicle
             </Button>
           </Space>
         </form>

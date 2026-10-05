@@ -10,6 +10,7 @@ import {
   checkQuantity,
   transaction,
   changeStock,
+  generateTicket,
 } from "../helpers.js";
 
 const router = Router();

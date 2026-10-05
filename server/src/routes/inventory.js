@@ -13,6 +13,7 @@ import {
   transaction,
   recordMovement,
   changeStock,
+  generateTicket,
 } from "../helpers.js";
 
 const router = Router();
@@ -158,11 +159,8 @@ router.patch("/products/:id/stock", manage, (req, res, next) => {
     req.body.notes,
     "Receipt, return, or adjustment explanation",
   );
-  if (
-    ["Client Installation / Site Project", "Parts Sale"].includes(reason) &&
-    !workOrderId
-  )
-    fail("A job or sales reference is required.");
+  const movementType = delta > 0 ? "STOCK_IN" : "STOCK_OUT";
+  const referenceId = generateTicket(delta > 0 ? "STI" : "STO");
   branchScope(req, req.body.branchId)
     .then((branchId) =>
       transaction((session) => {
@@ -171,9 +169,10 @@ router.patch("/products/:id/stock", manage, (req, res, next) => {
           branchId,
           delta,
           {
-            movementType: delta > 0 ? "STOCK_IN" : "STOCK_OUT",
+            movementType,
             reason: `${reason}: ${notes}`,
-            workOrderId,
+            workOrderId: workOrderId || "",
+            referenceId,
           },
           req.user,
           session,
@@ -259,7 +258,7 @@ router.post("/transfers", manage, (req, res, next) => {
   if (!quantity) fail("Transfer quantity must be positive.");
   const destinationId = text(req.body.destinationId, "Destination");
   const reason = text(req.body.reason, "Transfer receipt/reference");
-  const referenceId = randomUUID();
+  const referenceId = generateTicket("TRA");
   branchScope(req, req.body.branchId)
     .then((branchId) => {
       if (branchId === destinationId)

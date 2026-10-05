@@ -29,7 +29,6 @@ export default function PostMovementPage({
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState("Supplier Delivery / Restock");
   const [notes, setNotes] = useState("");
-  const [workOrderId, setWorkOrderId] = useState("");
   const [destinationId, setDestinationId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -74,7 +73,6 @@ export default function PostMovementPage({
             delta: stockIn ? quantity : -quantity,
             reason,
             notes,
-            workOrderId,
           };
     save(
       operation === "TRANSFER" ? "post" : "patch",
@@ -86,7 +84,6 @@ export default function PostMovementPage({
         setProductId("");
         setQuantity(1);
         setNotes("");
-        setWorkOrderId("");
         setDestinationId("");
       })
       .catch((err) => setError(errorMessage(err)))
@@ -180,21 +177,6 @@ export default function PostMovementPage({
               </label>
             )}
           </div>
-          {operation !== "TRANSFER" && (
-            <label className="field">
-              Job / sales reference (required for dispatch or parts sale)
-              <Input
-                required={[
-                  "Client Installation / Site Project",
-                  "Parts Sale",
-                ].includes(reason)}
-                value={workOrderId}
-                maxLength={200}
-                placeholder="e.g. AC-001 — manually recorded reference"
-                onChange={(e) => setWorkOrderId(e.target.value)}
-              />
-            </label>
-          )}
           <label className="field">
             Receipt, transfer reference, or explanation
             <Input.TextArea

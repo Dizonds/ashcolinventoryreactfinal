@@ -13,6 +13,11 @@ export function text(value, label, required = true) {
   if (required && !clean) fail(`${label} is required.`);
   return clean;
 }
+export function generateTicket(prefix = "SM") {
+  const yy = String(new Date().getFullYear()).slice(-2);
+  const rand = String(Math.floor(10 + Math.random() * 90));
+  return `${prefix}${yy}${rand}`;
+}
 export function number(value, label) {
   if (
     value === "" ||

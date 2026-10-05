@@ -44,7 +44,7 @@ export default function SettingsPage({ branches, save, refresh }) {
       kind === "branch" ? branch : account,
       kind === "branch"
         ? branch.branchType === "SERVICE_VAN"
-          ? "Service Van added."
+          ? "Service Vehicle added."
           : "Branch added."
         : "Account created.",
     )
@@ -92,14 +92,14 @@ export default function SettingsPage({ branches, save, refresh }) {
   }
   return (
     <>
-      <Typography.Title level={3}>Branches & Service Vans</Typography.Title>
+      <Typography.Title level={3}>Branches & Service Vehicles</Typography.Title>
       <Typography.Paragraph type="secondary">
-        ADMIN manages all warehouses, service vans, stock transfers, and employee accounts.
-        Service Vans operate as mobile sub-branches for on-site field maintenance.
+        ADMIN manages all warehouses, service vehicles, stock transfers, and employee accounts.
+        Service Vehicles operate as mobile sub-branches for on-site field maintenance.
       </Typography.Paragraph>
       {error && <Alert type="error" title={error} />}
       <div className="form-grid">
-        <Card title="Add Branch or Service Van">
+        <Card title="Add Branch or Service Vehicle">
           <form onSubmit={(e) => create(e, "branch")}>
             <label className="field">
               Facility / Branch Type
@@ -117,7 +117,7 @@ export default function SettingsPage({ branches, save, refresh }) {
                 }
                 options={[
                   { value: "WAREHOUSE", label: "Fixed Warehouse / Office" },
-                  { value: "SERVICE_VAN", label: "Service Van (Mobile Stock)" },
+                  { value: "SERVICE_VAN", label: "Service Vehicle (Mobile Stock)" },
                 ]}
               />
             </label>
@@ -136,13 +136,13 @@ export default function SettingsPage({ branches, save, refresh }) {
               />
             </label>
             <label className="field">
-              Facility / Van Name
+              Facility / Vehicle Name
               <Input
                 required
                 maxLength={200}
                 placeholder={
                   branch.branchType === "SERVICE_VAN"
-                    ? "e.g. Field Service Van Alpha"
+                    ? "e.g. Field Service Vehicle Alpha"
                     : "e.g. Taguig Central Warehouse"
                 }
                 value={branch.name}
@@ -181,7 +181,7 @@ export default function SettingsPage({ branches, save, refresh }) {
             )}
             <Button type="primary" htmlType="submit" loading={busy}>
               {branch.branchType === "SERVICE_VAN"
-                ? "Register Service Van"
+                ? "Register Service Vehicle"
                 : "Add Branch"}
             </Button>
           </form>
@@ -209,7 +209,7 @@ export default function SettingsPage({ branches, save, refresh }) {
           </div>
 
           <div style={{ marginTop: 24 }}>
-            <strong>🚐 Mobile Service Vans Fleet</strong>
+            <strong>🚐 Mobile Service Vehicles Fleet</strong>
             <Table
               size="small"
               rowKey="id"
@@ -217,8 +217,8 @@ export default function SettingsPage({ branches, save, refresh }) {
               dataSource={branches.filter((b) => b.branchType === "SERVICE_VAN")}
               pagination={false}
               columns={[
-                { title: "Van Code", dataIndex: "id" },
-                { title: "Van Name", dataIndex: "name" },
+                { title: "Vehicle Code", dataIndex: "id" },
+                { title: "Vehicle Name", dataIndex: "name" },
                 {
                   title: "Plate Number",
                   render: (_, item) => <strong>{item.plateNumber || "N/A"}</strong>,

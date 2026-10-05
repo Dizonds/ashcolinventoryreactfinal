@@ -154,14 +154,25 @@ export default function MovementsPage({ branchId, refresh }) {
                 entry.performedByName || "Legacy: not recorded",
             },
             {
-              title: "Job / link",
-              render: (_, entry) => (
-                <div>
-                  {entry.workOrderId || "—"}
-                  <br />
-                  <small>{entry.referenceId}</small>
-                </div>
-              ),
+              title: "Ticket / Reference ID",
+              render: (_, entry) => {
+                const ticket = entry.referenceId;
+                if (!ticket) return <span style={{ color: "#9ca3af" }}>—</span>;
+                const isTra = ticket.startsWith("TRA");
+                const isSti = ticket.startsWith("STI");
+                const isSto = ticket.startsWith("STO");
+                const color = isTra ? "purple" : isSti ? "green" : isSto ? "volcano" : "blue";
+                const icon = isTra ? "🔄 " : isSti ? "📥 " : isSto ? "📤 " : "📋 ";
+                return (
+                  <Tag
+                    color={color}
+                    style={{ fontSize: 12, fontWeight: 600 }}
+                  >
+                    {icon}
+                    {ticket}
+                  </Tag>
+                );
+              },
             },
             { title: "Reason", dataIndex: "reason" },
           ]}

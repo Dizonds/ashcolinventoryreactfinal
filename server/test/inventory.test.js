@@ -293,9 +293,8 @@ test("spec edits cannot overwrite quantity or change the measurement unit", asyn
   assert.equal((await Product.findById(item.id)).quantity, 5);
 });
 
-test("rejects untraceable job dispatches and invalid reasons", async () => {
+test("rejects invalid reasons and empty notes on stock movements", async () => {
   const item = await create();
-  assert.equal((await movement(item, -1, { workOrderId: "" })).status, 400);
   assert.equal(
     (await movement(item, 1, { reason: "Warehouse Transfer In" })).status,
     400,

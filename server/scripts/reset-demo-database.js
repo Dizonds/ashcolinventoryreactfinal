@@ -533,7 +533,8 @@ async function resetAndSeed() {
   const movements = [];
   const adminUser = users[0];
 
-  for (const item of createdProducts) {
+  for (let i = 0; i < createdProducts.length; i++) {
+    const item = createdProducts[i];
     movements.push({
       productId: item._id,
       branchId: item.branchId,
@@ -544,6 +545,7 @@ async function resetAndSeed() {
       quantityDelta: item.quantity,
       beforeQuantity: 0,
       afterQuantity: item.quantity,
+      referenceId: `STI26${String(i + 1).padStart(2, "0")}`,
       reason: "Initial clean database intake balance",
       performedBy: String(adminUser._id || "system"),
       performedByName: adminUser.fullName,
@@ -566,6 +568,7 @@ async function resetAndSeed() {
       quantityDelta: -3,
       beforeQuantity: 15,
       afterQuantity: 12,
+      referenceId: "STO2601",
       reason: "Client Installation / Site Project: Taguig BGC Condo Tower 2",
       workOrderId: "JOB-2026-101",
       performedBy: String(adminUser._id || "system"),
@@ -588,6 +591,7 @@ async function resetAndSeed() {
       quantityDelta: -5,
       beforeQuantity: 25,
       afterQuantity: 20,
+      referenceId: "STO2602",
       reason: "Client Installation / Site Project: Pasay Hotel Maintenance",
       workOrderId: "JOB-2026-108",
       performedBy: String(adminUser._id || "system"),
@@ -596,8 +600,49 @@ async function resetAndSeed() {
     });
   }
 
+  // Seed sample van transfer
+  const vanItem = createdProducts.find(
+    (p) => p.branchId === "VAN-01" && p.sku === "CP-PIPE-1/4",
+  );
+  if (vanItem) {
+    movements.push(
+      {
+        productId: vanItem._id,
+        branchId: "LOCAL-WAREHOUSE",
+        sku: vanItem.sku,
+        itemName: vanItem.name,
+        unitOfMeasure: vanItem.unitOfMeasure,
+        movementType: "TRANSFER_OUT",
+        quantityDelta: -4,
+        beforeQuantity: 24,
+        afterQuantity: 20,
+        referenceId: "TRA2601",
+        reason: "Van Loadout: Initial alpha van staging",
+        performedBy: String(adminUser._id || "system"),
+        performedByName: adminUser.fullName,
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+      {
+        productId: vanItem._id,
+        branchId: "VAN-01",
+        sku: vanItem.sku,
+        itemName: vanItem.name,
+        unitOfMeasure: vanItem.unitOfMeasure,
+        movementType: "TRANSFER_IN",
+        quantityDelta: 4,
+        beforeQuantity: 0,
+        afterQuantity: 4,
+        referenceId: "TRA2601",
+        reason: "Van Loadout: Initial alpha van staging",
+        performedBy: String(adminUser._id || "system"),
+        performedByName: adminUser.fullName,
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+    );
+  }
+
   await Movement.insertMany(movements);
-  console.log(`Seeded ${movements.length} initial ledger movements.`);
+  console.log(`Seeded ${movements.length} initial ledger movements with STI/STO/TRA tickets.`);
 
   // 8. Seed sample Material Request demonstrating Reserved Stock
   if (freonItem) {
