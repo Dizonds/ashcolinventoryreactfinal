@@ -152,16 +152,20 @@ export default function PostMovementPage({
             </label>
             {operation === "TRANSFER" ? (
               <label className="field">
-                Destination branch or Service Van
+                Destination branch
                 <Select
-                  placeholder="Choose a different branch or service van"
+                  placeholder="Choose a different branch"
                   value={destinationId || undefined}
                   onChange={setDestinationId}
                   options={branches
-                    .filter((branch) => branch.id !== branchId)
+                    .filter(
+                      (branch) =>
+                        branch.id !== branchId &&
+                        branch.branchType !== "SERVICE_VAN",
+                    )
                     .map((branch) => ({
                       value: branch.id,
-                      label: `${branch.branchType === "SERVICE_VAN" ? "🚐 " : "🏢 "}${branch.name} (${branch.id})`,
+                      label: `🏢 ${branch.name} (${branch.id})`,
                     }))}
                 />
               </label>

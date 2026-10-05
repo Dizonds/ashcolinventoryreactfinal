@@ -18,6 +18,7 @@ import RequestsPage from "./components/RequestsPage";
 import SettingsPage from "./components/SettingsPage";
 import CompatibilityLookupPage from "./components/CompatibilityLookupPage";
 import SuppliersPage from "./components/SuppliersPage";
+import ServiceVansPage from "./components/ServiceVansPage";
 import "./App.css";
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
   const [branchId, setBranchId] = useState("");
   const [items, setItems] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [requests, setRequests] = useState([]);
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -159,6 +161,7 @@ export default function App() {
   const navigation = [
     { id: "dashboard", label: "Overview" },
     { id: "inventory", label: "Inventory Catalog" },
+    { id: "service_vans", label: "Service Vans" },
     { id: "compatibility", label: "Model Matching" },
     { id: "suppliers", label: "Suppliers & Vendors" },
     { id: "requests", label: "Material Requests" },
@@ -246,10 +249,12 @@ export default function App() {
                       value={branchId || undefined}
                       style={{ minWidth: 240 }}
                       disabled={user.role !== "ADMIN"}
-                      options={branches.map((branch) => ({
-                        value: branch.id,
-                        label: `${branch.branchType === "SERVICE_VAN" ? "🚐 " : "🏢 "}${branch.name} (${branch.id})`,
-                      }))}
+                      options={branches
+                        .filter((branch) => branch.branchType !== "SERVICE_VAN")
+                        .map((branch) => ({
+                          value: branch.id,
+                          label: `🏢 ${branch.name} (${branch.id})`,
+                        }))}
                       onChange={(value) => {
                         setBranchId(value);
                         setItems([]);
@@ -307,6 +312,7 @@ export default function App() {
                         <InventorySection
                           items={items}
                           brands={brands}
+                          branches={branches}
                           user={user}
                           branchId={branchId}
                           save={save}
@@ -315,6 +321,15 @@ export default function App() {
                             setTargetId("");
                             setPage("post_movement");
                           }}
+                        />
+                      )}
+                      {page === "service_vans" && (
+                        <ServiceVansPage
+                          branches={branches}
+                          branchId={branchId}
+                          user={user}
+                          save={save}
+                          refresh={refresh}
                         />
                       )}
                       {page === "compatibility" && (

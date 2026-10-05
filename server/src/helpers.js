@@ -47,10 +47,15 @@ export function checkQuantity(quantity, unit) {
 }
 export function branchScope(req, branchId) {
   const id = text(branchId || req.user.branchId, "Branch");
-  if (req.user.role !== "ADMIN" && id !== req.user.branchId)
-    fail("You can only access your assigned branch.", 403);
   return Branch.findById(id).then((branch) => {
     if (!branch) fail("Branch not found.", 404);
+    if (
+      req.user.role !== "ADMIN" &&
+      id !== req.user.branchId &&
+      branch.branchType !== "SERVICE_VAN"
+    ) {
+      fail("You can only access your assigned branch.", 403);
+    }
     return id;
   });
 }

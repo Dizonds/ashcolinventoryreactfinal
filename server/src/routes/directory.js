@@ -5,21 +5,27 @@ import { text, fail, json } from "../helpers.js";
 
 const router = Router();
 router.get("/branches", (req, res, next) => {
-  const filter = req.user.role === "ADMIN" ? {} : { _id: req.user.branchId };
+  const filter =
+    req.user.role === "ADMIN"
+      ? {}
+      : { $or: [{ _id: req.user.branchId }, { branchType: "SERVICE_VAN" }] };
   Branch.find(filter)
     .sort({ name: 1 })
     .then((items) => res.json(items.map(json)))
     .catch(next);
 });
 router.post("/branches", admin, (req, res, next) => {
-  const id = text(req.body.id, "Branch ID");
-  if (!/^[A-Za-z0-9-]+$/.test(id))
-    fail("Use letters, numbers and hyphens for branch IDs.");
   const branchType = ["SERVICE_VAN", "WAREHOUSE"].includes(req.body.branchType)
     ? req.body.branchType
     : "WAREHOUSE";
+  const id = text(req.body.id, "Branch ID");
+  if (!/^[A-Za-z0-9-]+$/.test(id))
+    fail("Use letters, numbers and hyphens for branch IDs.");
   const plateNumber = text(req.body.plateNumber || "", "Plate number", false);
-  const status = ["AVAILABLE", "ON_FIELD", "MAINTENANCE"].includes(req.body.status)
+  const driverName = text(req.body.driverName || "", "Driver / Technician", false);
+  const status = ["AVAILABLE", "ON_FIELD", "ARRIVED", "MAINTENANCE"].includes(
+    req.body.status,
+  )
     ? req.body.status
     : "AVAILABLE";
   Branch.create({
@@ -27,18 +33,48 @@ router.post("/branches", admin, (req, res, next) => {
     name: text(req.body.name, "Branch name"),
     branchType,
     plateNumber,
+    driverName,
     status,
   })
     .then((item) => res.status(201).json(json(item)))
     .catch(next);
 });
-router.patch("/branches/:id/status", manage, (req, res, next) => {
+// Technicians/drivers, managers and admins can update van status (e.g. arrived, on field, available)
+router.patch("/branches/:id/status", (req, res, next) => {
   const status = text(req.body.status, "Status");
-  if (!["AVAILABLE", "ON_FIELD", "MAINTENANCE"].includes(status))
+  if (!["AVAILABLE", "ON_FIELD", "ARRIVED", "MAINTENANCE"].includes(status))
     fail("Invalid status.");
-  Branch.findByIdAndUpdate(req.params.id, { $set: { status } }, { new: true })
+  Branch.findById(req.params.id)
+    .then((branch) => {
+      if (!branch) fail("Branch or van not found.", 404);
+      if (
+        branch.branchType === "SERVICE_VAN" &&
+        ["ON_FIELD", "ARRIVED"].includes(status) &&
+        !branch.driverName
+      ) {
+        fail(
+          "An assigned technician/driver is required before dispatching or marking the van as arrived on field.",
+          400,
+        );
+      }
+      branch.status = status;
+      return branch.save();
+    })
     .then((item) => {
-      if (!item) fail("Branch or van not found.", 404);
+      res.json(json(item));
+    })
+    .catch(next);
+});
+// Assign driver / technician to a van (Managers & Admins)
+router.patch("/branches/:id/driver", manage, (req, res, next) => {
+  const driverName = text(req.body.driverName || "", "Driver name", false);
+  Branch.findByIdAndUpdate(
+    req.params.id,
+    { $set: { driverName } },
+    { new: true },
+  )
+    .then((item) => {
+      if (!item) fail("Van not found.", 404);
       res.json(json(item));
     })
     .catch(next);
@@ -82,7 +118,7 @@ router.post("/suppliers", manage, (req, res, next) => {
     .then((item) => res.status(201).json(json(item)))
     .catch(next);
 });
-router.get("/users", admin, (req, res, next) => {
+router.get("/users", manage, (req, res, next) => {
   User.find()
     .sort({ fullName: 1 })
     .then((items) => res.json(items.map(json)))

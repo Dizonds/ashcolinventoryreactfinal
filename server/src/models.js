@@ -156,9 +156,11 @@ export const Branch = mongoose.model(
         default: "WAREHOUSE",
       },
       plateNumber: { type: String, default: "" },
+      driverId: { type: String, default: "" },
+      driverName: { type: String, default: "" },
       status: {
         type: String,
-        enum: ["AVAILABLE", "ON_FIELD", "MAINTENANCE"],
+        enum: ["AVAILABLE", "ON_FIELD", "ARRIVED", "MAINTENANCE"],
         default: "AVAILABLE",
       },
     },

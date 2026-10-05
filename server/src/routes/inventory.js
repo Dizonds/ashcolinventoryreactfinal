@@ -250,8 +250,11 @@ router.post("/products/:id/restore", manage, (req, res, next) => {
     .then((item) => res.json(item))
     .catch(next);
 });
-// Transfers affect two branches, so only an administrator can complete them.
-router.post("/transfers", admin, (req, res, next) => {
+// Transfers between two branches require admin; loading to or returning from a service van allows managers
+router.post("/transfers", manage, (req, res, next) => {
+  if (req.user.role !== "ADMIN" && !req.body.isVanTransfer && !req.body.destinationId?.startsWith("VAN") && !req.body.branchId?.startsWith("VAN")) {
+    return res.status(403).json({ error: "Administrator access required." });
+  }
   const quantity = number(req.body.quantity, "Transfer quantity");
   if (!quantity) fail("Transfer quantity must be positive.");
   const destinationId = text(req.body.destinationId, "Destination");
@@ -261,8 +264,19 @@ router.post("/transfers", admin, (req, res, next) => {
     .then((branchId) => {
       if (branchId === destinationId)
         fail("Choose a different destination branch.");
-      return Branch.findById(destinationId).then((destination) => {
+      return Promise.all([
+        Branch.findById(branchId),
+        Branch.findById(destinationId),
+      ]).then(([sourceBranch, destination]) => {
         if (!destination) fail("Destination branch not found.", 404);
+        const isVanTransfer =
+          (sourceBranch && sourceBranch.branchType === "SERVICE_VAN") ||
+          destination.branchType === "SERVICE_VAN";
+        if (!isVanTransfer && req.user.role !== "ADMIN") {
+          return res
+            .status(403)
+            .json({ error: "Administrator access required." });
+        }
         return transaction((session) => {
           let source;
           return changeStock(

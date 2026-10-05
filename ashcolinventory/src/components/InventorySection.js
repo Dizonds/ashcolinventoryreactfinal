@@ -53,6 +53,7 @@ const units = [
 export default function InventorySection({
   items,
   brands,
+  branches = [],
   user,
   branchId,
   save,
@@ -60,6 +61,14 @@ export default function InventorySection({
   onNavigateToPostMovement,
 }) {
   const canManage = user.role !== "EMPLOYEE";
+  const serviceVans = branches.filter((b) => b.branchType === "SERVICE_VAN");
+  const [loadVanItem, setLoadVanItem] = useState(null);
+  const [selectedVanId, setSelectedVanId] = useState("");
+  const [loadQuantity, setLoadQuantity] = useState(1);
+  const [loadNotes, setLoadNotes] = useState("");
+  const [loadBusy, setLoadBusy] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
   const [search, setSearch] = useState("");
   const [type, setType] = useState(
     preselectedFilter && preselectedFilter.itemType
@@ -87,6 +96,7 @@ export default function InventorySection({
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [newBrand, setNewBrand] = useState("");
+  const [suppliersList, setSuppliersList] = useState([]);
   const categoriesByType = {
     "AC Unit": ["Split Type", "Window Type", "Floor Mounted", "Portable"],
     "Spare Part": [
@@ -126,6 +136,23 @@ export default function InventorySection({
     "Installation Materials",
     "Copper Tubing",
   ];
+  useEffect(() => {
+    let active = true;
+    const req = api("get", "/suppliers");
+    if (req && typeof req.then === "function") {
+      req
+        .then((res) => {
+          if (active && res && Array.isArray(res.data)) {
+            setSuppliersList(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!archived) return;
     let active = true;
@@ -241,6 +268,21 @@ export default function InventorySection({
           {canManage && !archived && (
             <Button size="small" onClick={() => open(item)}>
               Edit
+            </Button>
+          )}
+          {canManage && !archived && item.quantity > 0 && serviceVans.length > 0 && (
+            <Button
+              size="small"
+              type="dashed"
+              onClick={() => {
+                setLoadVanItem(item);
+                setSelectedVanId(serviceVans[0]?.id || "");
+                setLoadQuantity(1);
+                setLoadNotes("");
+                setLoadError("");
+              }}
+            >
+              🚐 Add to Van
             </Button>
           )}
           {canManage && (
@@ -478,10 +520,22 @@ export default function InventorySection({
             </label>
             <label className="field">
               Supplier / Vendor
-              <Input
-                value={values.supplier || ""}
-                onChange={(e) => field("supplier", e.target.value)}
-                placeholder="e.g. Concepcion-Carrier, Chemours"
+              <Select
+                showSearch
+                allowClear
+                placeholder="Select or enter supplier"
+                value={values.supplier || undefined}
+                onChange={(value) => field("supplier", value || "")}
+                options={Array.from(
+                  new Set([
+                    ...suppliersList.map((s) => s.name),
+                    ...items.map((it) => it.supplier).filter(Boolean),
+                    ...(values.supplier ? [values.supplier] : []),
+                  ]),
+                ).map((name) => ({
+                  value: name,
+                  label: name,
+                }))}
               />
             </label>
             {values.itemType !== "AC Unit" && (
@@ -663,6 +717,106 @@ export default function InventorySection({
                 : []),
             ]}
           />
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(loadVanItem)}
+        title={loadVanItem ? `🚐 Load to Service Van: ${loadVanItem.name}` : ""}
+        onCancel={() => setLoadVanItem(null)}
+        footer={null}
+        destroyOnClose
+      >
+        {loadVanItem && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setLoadBusy(true);
+              setLoadError("");
+              save(
+                "post",
+                "/transfers",
+                {
+                  branchId,
+                  destinationId: selectedVanId,
+                  productId: loadVanItem.id,
+                  quantity: loadQuantity,
+                  reason: loadNotes
+                    ? `Van Loadout: ${loadNotes}`
+                    : `Stock loaded to van ${selectedVanId}`,
+                },
+                `Successfully loaded ${loadQuantity} ${loadVanItem.unitOfMeasure} of ${loadVanItem.name} to Service Van!`,
+              )
+                .then(() => {
+                  setLoadVanItem(null);
+                })
+                .catch((err) => {
+                  setLoadError(errorMessage(err));
+                })
+                .finally(() => setLoadBusy(false));
+            }}
+          >
+            {loadError && (
+              <Alert
+                type="error"
+                showIcon
+                message={loadError}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <Typography.Text type="secondary">
+                Current Branch Stock:{" "}
+                <strong>
+                  {loadVanItem.quantity} {loadVanItem.unitOfMeasure}
+                </strong>
+              </Typography.Text>
+            </div>
+            <label className="field" style={{ display: "block", marginBottom: 12 }}>
+              Target Service Van
+              <Select
+                value={selectedVanId}
+                onChange={setSelectedVanId}
+                style={{ width: "100%", marginTop: 4 }}
+                options={serviceVans.map((van) => ({
+                  value: van.id,
+                  label: `🚐 ${van.name} (${van.plateNumber ? `${van.plateNumber} · ` : ""}${van.status})`,
+                }))}
+              />
+            </label>
+            <label className="field" style={{ display: "block", marginBottom: 12 }}>
+              Quantity to Load ({loadVanItem.unitOfMeasure})
+              <InputNumber
+                min={isContinuousUnit(loadVanItem.unitOfMeasure) ? 0.001 : 1}
+                max={loadVanItem.quantity}
+                step={isContinuousUnit(loadVanItem.unitOfMeasure) ? 0.1 : 1}
+                precision={isContinuousUnit(loadVanItem.unitOfMeasure) ? 3 : 0}
+                value={loadQuantity}
+                onChange={setLoadQuantity}
+                style={{ width: "100%", marginTop: 4 }}
+              />
+            </label>
+            <label className="field" style={{ display: "block", marginBottom: 16 }}>
+              Job / Dispatch Note (optional)
+              <Input
+                placeholder="e.g. Field restock for AC repair jobs"
+                value={loadNotes}
+                onChange={(e) => setLoadNotes(e.target.value)}
+                style={{ marginTop: 4 }}
+              />
+            </label>
+            <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+              <Button onClick={() => setLoadVanItem(null)}>Cancel</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loadBusy}
+                disabled={!selectedVanId || loadQuantity <= 0}
+              >
+                Confirm Load to Van
+              </Button>
+            </Space>
+          </form>
         )}
       </Modal>
     </>

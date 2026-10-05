@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, Input, Select, Button, Table, Alert, Typography } from "antd";
+import { Card, Input, Select, Button, Table, Alert, Typography, Tag } from "antd";
 import { api, errorMessage } from "../api";
 
 export default function SettingsPage({ branches, save, refresh }) {
@@ -8,6 +8,7 @@ export default function SettingsPage({ branches, save, refresh }) {
     name: "",
     branchType: "WAREHOUSE",
     plateNumber: "",
+    driverName: "",
     status: "AVAILABLE",
   });
   const [account, setAccount] = useState({
@@ -47,13 +48,26 @@ export default function SettingsPage({ branches, save, refresh }) {
           : "Branch added."
         : "Account created.",
     )
-      .then(() =>
+      .then(() => {
+        if (kind === "user") {
+          try {
+            const saved = JSON.parse(localStorage.getItem("ashcol_demo_users") || "[]");
+            saved.push({
+              email: account.email,
+              fullName: account.fullName,
+              role: account.role,
+              password: account.password,
+            });
+            localStorage.setItem("ashcol_demo_users", JSON.stringify(saved));
+          } catch (e) {}
+        }
         kind === "branch"
           ? setBranch({
               id: "",
               name: "",
               branchType: "WAREHOUSE",
               plateNumber: "",
+              driverName: "",
               status: "AVAILABLE",
             })
           : setAccount({
@@ -62,8 +76,8 @@ export default function SettingsPage({ branches, save, refresh }) {
               fullName: "",
               role: "EMPLOYEE",
               branchId: "",
-            }),
-      )
+            });
+      })
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setBusy(false));
   }
@@ -136,16 +150,34 @@ export default function SettingsPage({ branches, save, refresh }) {
               />
             </label>
             {branch.branchType === "SERVICE_VAN" && (
-              <label className="field">
-                Vehicle Plate Number
-                <Input
-                  placeholder="e.g. NBD-1234"
-                  value={branch.plateNumber}
-                  onChange={(e) =>
-                    setBranch({ ...branch, plateNumber: e.target.value })
-                  }
-                />
-              </label>
+              <>
+                <label className="field">
+                  Vehicle Plate Number
+                  <Input
+                    placeholder="e.g. NBD-1234"
+                    value={branch.plateNumber}
+                    onChange={(e) =>
+                      setBranch({ ...branch, plateNumber: e.target.value })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Assigned Lead Driver / Technician
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="Select lead technician (optional)"
+                    value={branch.driverName || undefined}
+                    onChange={(val) =>
+                      setBranch({ ...branch, driverName: val || "" })
+                    }
+                    options={users.map((u) => ({
+                      value: `${u.fullName} (${u.role})`,
+                      label: `${u.fullName} (${u.role})`,
+                    }))}
+                  />
+                </label>
+              </>
             )}
             <Button type="primary" htmlType="submit" loading={busy}>
               {branch.branchType === "SERVICE_VAN"
@@ -153,47 +185,80 @@ export default function SettingsPage({ branches, save, refresh }) {
                 : "Add Branch"}
             </Button>
           </form>
-          <Table
-            size="small"
-            rowKey="id"
-            dataSource={branches}
-            columns={[
-              { title: "ID", dataIndex: "id" },
-              { title: "Name", dataIndex: "name" },
-              {
-                title: "Type",
-                render: (_, item) =>
-                  item.branchType === "SERVICE_VAN" ? (
-                    <span style={{ color: "#0958d9", fontWeight: 600 }}>
-                      🚐 Van {item.plateNumber ? `(${item.plateNumber})` : ""}
-                    </span>
-                  ) : (
-                    <span>🏢 Warehouse</span>
-                  ),
-              },
-              {
-                title: "Status",
-                render: (_, item) => {
-                  if (item.branchType !== "SERVICE_VAN") return "Active";
-                  const currentStatus = item.status || "AVAILABLE";
-                  return (
-                    <Select
-                      size="small"
-                      value={currentStatus}
-                      onChange={(val) => updateVanStatus(item.id, val)}
-                      style={{ width: 120 }}
-                      options={[
-                        { value: "AVAILABLE", label: "🟢 Available" },
-                        { value: "ON_FIELD", label: "🔵 On Field" },
-                        { value: "MAINTENANCE", label: "🟠 In Repair" },
-                      ]}
-                    />
-                  );
+          <div style={{ marginTop: 20 }}>
+            <strong>🏢 Physical Warehouses & Branches</strong>
+            <Table
+              size="small"
+              rowKey="id"
+              style={{ marginTop: 8 }}
+              dataSource={branches.filter((b) => b.branchType !== "SERVICE_VAN")}
+              pagination={false}
+              columns={[
+                { title: "Branch ID", dataIndex: "id" },
+                { title: "Warehouse Name", dataIndex: "name" },
+                {
+                  title: "Type",
+                  render: () => <Tag color="blue">🏢 Warehouse</Tag>,
                 },
-              },
-            ]}
-            style={{ marginTop: 20 }}
-          />
+                {
+                  title: "Status",
+                  render: () => <Tag color="green">Active</Tag>,
+                },
+              ]}
+            />
+          </div>
+
+          <div style={{ marginTop: 24 }}>
+            <strong>🚐 Mobile Service Vans Fleet</strong>
+            <Table
+              size="small"
+              rowKey="id"
+              style={{ marginTop: 8 }}
+              dataSource={branches.filter((b) => b.branchType === "SERVICE_VAN")}
+              pagination={false}
+              columns={[
+                { title: "Van Code", dataIndex: "id" },
+                { title: "Van Name", dataIndex: "name" },
+                {
+                  title: "Plate Number",
+                  render: (_, item) => <strong>{item.plateNumber || "N/A"}</strong>,
+                },
+                {
+                  title: "Assigned Lead Driver",
+                  render: (_, item) =>
+                    item.driverName ? (
+                      <span style={{ color: "#1d4ed8", fontWeight: 500 }}>
+                        👤 {item.driverName}
+                      </span>
+                    ) : (
+                      <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                        Unassigned (Required for field trips)
+                      </span>
+                    ),
+                },
+                {
+                  title: "Fleet Status",
+                  render: (_, item) => {
+                    const currentStatus = item.status || "AVAILABLE";
+                    return (
+                      <Select
+                        size="small"
+                        value={currentStatus}
+                        onChange={(val) => updateVanStatus(item.id, val)}
+                        style={{ minWidth: 150 }}
+                        options={[
+                          { value: "AVAILABLE", label: "🟢 Available / Base" },
+                          { value: "ON_FIELD", label: "🔵 En Route / On Field" },
+                          { value: "ARRIVED", label: "📍 Arrived at Site" },
+                          { value: "MAINTENANCE", label: "🟠 In Maintenance" },
+                        ]}
+                      />
+                    );
+                  },
+                },
+              ]}
+            />
+          </div>
         </Card>
         <Card title="Create account">
           <form onSubmit={(e) => create(e, "user")}>
@@ -242,16 +307,18 @@ export default function SettingsPage({ branches, save, refresh }) {
               />
             </label>
             <label className="field">
-              Assigned branch
+              Assigned branch / warehouse
               <Select
                 value={account.branchId || undefined}
                 onChange={(value) =>
                   setAccount({ ...account, branchId: value })
                 }
-                options={branches.map((entry) => ({
-                  value: entry.id,
-                  label: entry.name,
-                }))}
+                options={branches
+                  .filter((entry) => entry.branchType !== "SERVICE_VAN")
+                  .map((entry) => ({
+                    value: entry.id,
+                    label: `🏢 ${entry.name} (${entry.id})`,
+                  }))}
               />
             </label>
             <Button

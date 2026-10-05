@@ -68,6 +68,7 @@ async function resetAndSeed() {
       name: "Field Service Van Alpha",
       branchType: "SERVICE_VAN",
       plateNumber: "NBD-1234",
+      driverName: "Alex Rivera (Lead Tech)",
       status: "AVAILABLE",
     },
     {
@@ -75,6 +76,7 @@ async function resetAndSeed() {
       name: "Field Service Van Bravo",
       branchType: "SERVICE_VAN",
       plateNumber: "ABC-5678",
+      driverName: "Danilo Santos (Senior Tech)",
       status: "ON_FIELD",
     },
   ];
@@ -156,7 +158,7 @@ async function resetAndSeed() {
       email: "technician@ashcol.com",
       fullName: "Field Technician Lead",
       role: "EMPLOYEE",
-      branchId: "VAN-01",
+      branchId: "LOCAL-WAREHOUSE",
       passwordHash,
     },
   ];
