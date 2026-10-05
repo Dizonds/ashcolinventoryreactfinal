@@ -1,290 +1,374 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { ConfigProvider, App as AntdApp, message, Layout, theme } from 'antd';
-import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
-import LoginPage from './components/LoginPage';
-import DashboardPage from './components/DashboardPage';
-import InventorySection from './components/InventorySection';
-import PostMovementPage from './components/PostMovementPage';
-import MovementsPage from './components/MovementsPage';
-
-const { Content } = Layout;
-const { defaultAlgorithm, darkAlgorithm } = theme;
-const API_BASE = 'http://localhost:3001/api';
-
-function MainApp({ isDark, onToggleTheme }) {
-  const [currentUser, setCurrentUser] = useState({
-    email: 'admin@ashcol.local',
-    role: 'Inventory Manager',
-    fullName: 'Ashcol Warehouse Officer',
-  });
-
-  const [activePage, setActivePage] = useState(() => {
-    return localStorage.getItem('ashcol_active_tab') || 'dashboard';
-  });
-  const [targetMovementItemId, setTargetMovementItemId] = useState(null);
-  const [inventoryFilter, setInventoryFilter] = useState(null);
-
-  const handlePageChange = (page) => {
-    setActivePage(page);
-    localStorage.setItem('ashcol_active_tab', page);
-  };
-
-  const [items, setItems] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [brands, setBrands] = useState([]);
-
-  const loadData = () => {
-    axios
-      .get(`${API_BASE}/products`)
-      .then((res) => {
-        if (Array.isArray(res.data)) setItems(res.data);
-      })
-      .catch((err) => console.log(err.message));
-
-    axios
-      .get(`${API_BASE}/movements`)
-      .then((res) => {
-        if (Array.isArray(res.data)) setMovements(res.data);
-      })
-      .catch((err) => console.log(err.message));
-
-    axios
-      .get(`${API_BASE}/brands`)
-      .then((res) => {
-        if (Array.isArray(res.data)) setBrands(res.data);
-      })
-      .catch((err) => console.log(err.message));
-  };
-
-  useEffect(() => {
-    loadData();
-    const intervalId = setInterval(loadData, 4000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const handleAddItem = (newItem) => {
-    axios
-      .post(`${API_BASE}/products`, newItem)
-      .then((res) => {
-        const saved = res.data;
-        if (saved && saved.id) {
-          setItems([saved, ...items]);
-          message.success(`Item "${saved.name}" registered to inventory!`);
-        }
-      })
-      .catch((err) => message.error('Failed to add item: ' + err.message));
-  };
-
-  const handleAddBrand = (brandName) => {
-    axios
-      .post(`${API_BASE}/brands`, { name: brandName })
-      .then((res) => {
-        const savedBrand = res.data;
-        if (savedBrand && savedBrand.name) {
-          const matches = brands.filter(
-            (b) => b.name.toLowerCase() === savedBrand.name.toLowerCase()
-          );
-          if (matches.length === 0) {
-            setBrands([...brands, savedBrand]);
-          }
-          message.info(`Brand "${savedBrand.name}" registered!`);
-        }
-      })
-      .catch((err) => console.error('Error saving brand:', err.message));
-  };
-
-  const handleAdjustStock = (itemId, delta, reason) => {
-    axios
-      .patch(`${API_BASE}/products/${itemId}/stock`, { delta, reason })
-      .then((res) => {
-        const resData = res.data;
-        setItems(
-          items.map((item) => {
-            if (item.id === itemId) {
-              return { ...item, quantity: resData.quantity };
-            }
-            return item;
-          })
-        );
-        message.success('Stock movement successfully posted & saved to ledger!');
-        setTargetMovementItemId(null);
-        setActivePage('movements');
-      })
-      .catch((err) => message.error('Error adjusting stock: ' + err.message));
-  };
-
-  const handleUpdateItem = (updatedItem) => {
-    return axios
-      .put(`${API_BASE}/products/${updatedItem.id}`, updatedItem)
-      .then((res) => {
-        const savedData = res.data;
-        const normalized = {
-          ...savedData,
-          id: savedData.id || (savedData._id ? savedData._id.toString() : updatedItem.id),
-        };
-        setItems((prev) =>
-          prev.map((item) => (item.id === updatedItem.id ? { ...item, ...normalized } : item))
-        );
-        // If stock delta occurred, reload movements to sync the Stock Ledger
-        if (updatedItem.stockEditReason) {
-          axios
-            .get(`${API_BASE}/movements`)
-            .then((mRes) => {
-              if (Array.isArray(mRes.data)) setMovements(mRes.data);
-            })
-            .catch(() => {});
-        }
-        message.success('Item specifications updated successfully!');
-        return normalized;
-      })
-      .catch((err) => {
-        message.error('Error updating item: ' + err.message);
-        throw err;
-      });
-  };
-
-  const handleDeleteItem = (itemId) => {
-    axios
-      .delete(`${API_BASE}/products/${itemId}`)
-      .then(() => {
-        setItems(items.filter(({ id }) => id !== itemId));
-        message.success('Item deleted from inventory.');
-      })
-      .catch((err) => message.error('Error deleting item: ' + err.message));
-  };
-
-  if (!currentUser) {
-    return <LoginPage onLogin={(user) => setCurrentUser(user)} />;
-  }
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        background: isDark ? '#0f172a' : '#f8fafc',
-        color: isDark ? '#f8fafc' : '#0f172a',
-        transition: 'background 0.2s',
-      }}
-    >
-      <Sidebar
-        activePage={activePage}
-        setActivePage={handlePageChange}
-        onLogout={() => {
-          setCurrentUser(null);
-          message.info('Logged out successfully');
-        }}
-        isDark={isDark}
-      />
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <TopBar
-          user={currentUser}
-          isDark={isDark}
-          onToggleTheme={onToggleTheme}
-        />
-
-        <Content style={{ flex: 1, background: isDark ? '#0b1120' : '#f8fafc', transition: 'background 0.2s' }}>
-          {activePage === 'dashboard' && (
-            <DashboardPage
-              items={items}
-              movements={movements}
-              user={currentUser}
-              onRestockItem={(itemId) => {
-                setTargetMovementItemId(itemId);
-                handlePageChange('post_movement');
-              }}
-              onNavigateToInventoryWithFilter={(filter) => {
-                setInventoryFilter(filter);
-                handlePageChange('inventory');
-              }}
-            />
-          )}
-
-          {activePage === 'inventory' && (
-            <InventorySection
-              items={items}
-              brands={brands}
-              user={currentUser}
-              onAddItem={handleAddItem}
-              onDeleteItem={handleDeleteItem}
-              onUpdateItem={handleUpdateItem}
-              onAddBrand={handleAddBrand}
-              preselectedFilter={inventoryFilter}
-              onNavigateToPostMovement={() => {
-                setTargetMovementItemId(null);
-                handlePageChange('post_movement');
-              }}
-            />
-          )}
-
-          {activePage === 'post_movement' && (
-            <PostMovementPage
-              items={items}
-              user={currentUser}
-              onAdjustStock={handleAdjustStock}
-              preselectedItemId={targetMovementItemId}
-            />
-          )}
-
-          {activePage === 'movements' && (
-            <MovementsPage movements={movements} />
-          )}
-        </Content>
-      </div>
-    </div>
-  );
-}
+import React, { useState, useEffect } from "react";
+import {
+  ConfigProvider,
+  theme,
+  Alert,
+  Button,
+  Select,
+  Space,
+  Spin,
+} from "antd";
+import { api, errorMessage } from "./api";
+import LoginPage from "./components/LoginPage";
+import DashboardPage from "./components/DashboardPage";
+import InventorySection from "./components/InventorySection";
+import PostMovementPage from "./components/PostMovementPage";
+import MovementsPage from "./components/MovementsPage";
+import RequestsPage from "./components/RequestsPage";
+import SettingsPage from "./components/SettingsPage";
+import CompatibilityLookupPage from "./components/CompatibilityLookupPage";
+import SuppliersPage from "./components/SuppliersPage";
+import "./App.css";
 
 export default function App() {
-  const [isDark, setIsDark] = useState(() => {
-    const savedTheme = localStorage.getItem('ashcol_theme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [page, setPage] = useState("dashboard");
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState("");
+  const [items, setItems] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState(null);
+  const [targetId, setTargetId] = useState("");
+  const [inventoryFilter, setInventoryFilter] = useState(null);
+  const [isDark, setIsDark] = useState(
+    localStorage.getItem("ashcol_theme") === "dark",
+  );
+  const canManage = user && user.role !== "EMPLOYEE";
+
+  useEffect(() => {
+    let active = true;
+    if (!sessionStorage.getItem("ashcol_inventory_token")) {
+      setChecking(false);
+      return;
     }
-    return false;
-  });
+    api("get", "/auth/me")
+      .then(({ data }) => {
+        if (active) setUser(data);
+      })
+      .catch((err) => {
+        if (active) {
+          if (err.response && err.response.status === 401)
+            sessionStorage.removeItem("ashcol_inventory_token");
+          setError(errorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (active) setChecking(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const toggleTheme = () => {
-    setIsDark((prev) => {
-      const nextTheme = !prev;
-      localStorage.setItem('ashcol_theme', nextTheme ? 'dark' : 'light');
-      return nextTheme;
-    });
-  };
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    api("get", "/branches")
+      .then(({ data }) => {
+        if (active) {
+          setBranches(data);
+          setBranchId((current) => current || user.branchId);
+        }
+      })
+      .catch((err) => {
+        if (active) setError(errorMessage(err));
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, refresh]);
 
+  useEffect(() => {
+    if (!user || !branchId) return;
+    let active = true;
+    setLoading(true);
+    setError("");
+    Promise.all([
+      api("get", "/products", null, { branchId }),
+      api("get", "/brands"),
+      api("get", "/requests", null, { branchId }),
+    ])
+      .then(([stock, brandList, requestList]) => {
+        if (active) {
+          setItems(stock.data);
+          setBrands(brandList.data);
+          setRequests(requestList.data);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setItems([]);
+          setRequests([]);
+          setError(errorMessage(err));
+          if (err.response && err.response.status === 401) {
+            sessionStorage.removeItem("ashcol_inventory_token");
+            setUser(null);
+          }
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, branchId, refresh]);
+
+  function save(method, path, data, success, params) {
+    return api(method, path, data, params)
+      .then((response) => {
+        setRefresh((value) => value + 1);
+        setNotice({ type: "success", text: success });
+        return response.data;
+      })
+      .catch((err) => {
+        setNotice({ type: "error", text: errorMessage(err) });
+        if (err.response && err.response.status === 401) {
+          sessionStorage.removeItem("ashcol_inventory_token");
+          setUser(null);
+        }
+        throw err;
+      });
+  }
+  function logout() {
+    api("post", "/auth/logout")
+      .then(() => {
+        sessionStorage.removeItem("ashcol_inventory_token");
+        setUser(null);
+        setBranchId("");
+        setItems([]);
+        setRequests([]);
+        setBranches([]);
+        setError("");
+        setNotice(null);
+        setPage("dashboard");
+      })
+      .catch((err) => {
+        if (err.response && err.response.status === 401) {
+          sessionStorage.removeItem("ashcol_inventory_token");
+          setUser(null);
+          setBranchId("");
+        } else setNotice({ type: "error", text: errorMessage(err) });
+      });
+  }
+  const navigation = [
+    { id: "dashboard", label: "Overview" },
+    { id: "inventory", label: "Inventory Catalog" },
+    { id: "compatibility", label: "Model Matching" },
+    { id: "suppliers", label: "Suppliers & Vendors" },
+    { id: "requests", label: "Material Requests" },
+    ...(canManage ? [{ id: "post_movement", label: "Post Movement" }] : []),
+    { id: "movements", label: "Stock Ledger" },
+    ...(user && user.role === "ADMIN"
+      ? [{ id: "settings", label: "Branches & Accounts" }]
+      : []),
+  ];
   return (
     <ConfigProvider
       theme={{
-        algorithm: isDark ? darkAlgorithm : defaultAlgorithm,
-        token: {
-          colorPrimary: '#059669',
-          colorSuccess: '#10b981',
-          colorWarning: '#f59e0b',
-          colorError: '#ef4444',
-          colorInfo: '#2563eb',
-          borderRadius: 8,
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          colorBgContainer: isDark ? '#1e293b' : '#ffffff',
-          colorBgLayout: isDark ? '#0b1120' : '#f8fafc',
-        },
-        components: {
-          Menu: {
-            collapsedWidth: 72,
-            collapsedIconSize: 20,
-            itemMarginInline: 8,
-          },
-          Table: {
-            rowHoverBg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-          },
-        },
+        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        token: { colorPrimary: "#059669", borderRadius: 8 },
       }}
     >
-      <AntdApp>
-        <MainApp isDark={isDark} onToggleTheme={toggleTheme} />
-      </AntdApp>
+      <div className={isDark ? "inventory-app dark" : "inventory-app"}>
+        {checking ? (
+          <div className="login-wrap">
+            <Spin description="Checking session">
+              <div style={{ padding: 40 }} />
+            </Spin>
+          </div>
+        ) : !user ? (
+          <LoginPage
+            initialError={error}
+            onLogin={(account) => {
+              setError("");
+              setUser(account);
+              setBranchId(account.branchId);
+              setPage("dashboard");
+            }}
+          />
+        ) : (
+          <>
+            <header className="app-header">
+              <Space>
+                <img
+                  src="/assets/ash-logo.jpg"
+                  alt="ASHCOL"
+                  width="44"
+                  height="44"
+                />
+                <div>
+                  <strong>ASHCOL Inventory</strong>
+                  <div>Branch stock & service materials</div>
+                </div>
+              </Space>
+              <Space wrap>
+                <span>
+                  {user.fullName} · {user.role}
+                </span>
+                <Button
+                  onClick={() => {
+                    setIsDark(!isDark);
+                    localStorage.setItem(
+                      "ashcol_theme",
+                      isDark ? "light" : "dark",
+                    );
+                  }}
+                >
+                  {isDark ? "Light" : "Dark"} theme
+                </Button>
+                <Button onClick={logout}>Log out</Button>
+              </Space>
+            </header>
+            <div className="app-body">
+              <nav className="app-nav" aria-label="Inventory navigation">
+                {navigation.map((entry) => (
+                  <Button
+                    key={entry.id}
+                    type={page === entry.id ? "primary" : "text"}
+                    onClick={() => setPage(entry.id)}
+                  >
+                    {entry.label}
+                  </Button>
+                ))}
+              </nav>
+              <main>
+                <div className="branch-toolbar">
+                  <Space wrap>
+                    <strong>Branch</strong>
+                    <Select
+                      aria-label="Current branch"
+                      value={branchId || undefined}
+                      style={{ minWidth: 240 }}
+                      disabled={user.role !== "ADMIN"}
+                      options={branches.map((branch) => ({
+                        value: branch.id,
+                        label: `${branch.branchType === "SERVICE_VAN" ? "🚐 " : "🏢 "}${branch.name} (${branch.id})`,
+                      }))}
+                      onChange={(value) => {
+                        setBranchId(value);
+                        setItems([]);
+                        setRequests([]);
+                        setTargetId("");
+                      }}
+                    />
+                  </Space>
+                  <Button
+                    loading={loading}
+                    onClick={() => setRefresh(refresh + 1)}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+                {error && (
+                  <Alert
+                    type="error"
+                    showIcon
+                    title="Inventory could not be loaded"
+                    description={error}
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
+                {notice && (
+                  <Alert
+                    type={notice.type}
+                    title={notice.text}
+                    showIcon
+                    closable
+                    onClose={() => setNotice(null)}
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
+                <Spin spinning={loading}>
+                  {!error && branchId && (
+                    <div key={branchId}>
+                      {page === "dashboard" && (
+                        <DashboardPage
+                          items={items}
+                          requests={requests}
+                          branchId={branchId}
+                          canManage={canManage}
+                          onRestockItem={(id) => {
+                            setTargetId(id);
+                            setPage("post_movement");
+                          }}
+                          onNavigateToInventoryWithFilter={(filter) => {
+                            setInventoryFilter(filter);
+                            setPage("inventory");
+                          }}
+                        />
+                      )}
+                      {page === "inventory" && (
+                        <InventorySection
+                          items={items}
+                          brands={brands}
+                          user={user}
+                          branchId={branchId}
+                          save={save}
+                          preselectedFilter={inventoryFilter}
+                          onNavigateToPostMovement={() => {
+                            setTargetId("");
+                            setPage("post_movement");
+                          }}
+                        />
+                      )}
+                      {page === "compatibility" && (
+                        <CompatibilityLookupPage
+                          items={items}
+                          onNavigateToItem={(id) => {
+                            setPage("inventory");
+                          }}
+                        />
+                      )}
+                      {page === "suppliers" && (
+                        <SuppliersPage
+                          user={user}
+                          save={save}
+                          refresh={refresh}
+                        />
+                      )}
+                      {page === "requests" && (
+                        <RequestsPage
+                          items={items}
+                          requests={requests}
+                          user={user}
+                          branchId={branchId}
+                          save={save}
+                        />
+                      )}
+                      {page === "post_movement" && canManage && (
+                        <PostMovementPage
+                          items={items}
+                          branches={branches}
+                          branchId={branchId}
+                          user={user}
+                          save={save}
+                          preselectedItemId={targetId}
+                        />
+                      )}
+                      {page === "movements" && (
+                        <MovementsPage branchId={branchId} refresh={refresh} />
+                      )}
+                      {page === "settings" && user.role === "ADMIN" && (
+                        <SettingsPage
+                          branches={branches}
+                          save={save}
+                          refresh={refresh}
+                        />
+                      )}
+                    </div>
+                  )}
+                </Spin>
+              </main>
+            </div>
+          </>
+        )}
+      </div>
     </ConfigProvider>
   );
 }
