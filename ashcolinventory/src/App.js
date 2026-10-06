@@ -168,7 +168,10 @@ export default function App() {
     ...(canManage ? [{ id: "post_movement", label: "Post Movement" }] : []),
     { id: "movements", label: "Stock Ledger" },
     ...(user && user.role === "ADMIN"
-      ? [{ id: "settings", label: "Branches & Accounts" }]
+      ? [
+          { id: "branches", label: "Branches" },
+          { id: "user_management", label: "User Management" },
+        ]
       : []),
   ];
   return (
@@ -369,8 +372,17 @@ export default function App() {
                       {page === "movements" && (
                         <MovementsPage branchId={branchId} refresh={refresh} />
                       )}
-                      {page === "settings" && user.role === "ADMIN" && (
+                      {page === "branches" && user.role === "ADMIN" && (
                         <SettingsPage
+                          section="branches"
+                          branches={branches}
+                          save={save}
+                          refresh={refresh}
+                        />
+                      )}
+                      {page === "user_management" && user.role === "ADMIN" && (
+                        <SettingsPage
+                          section="users"
                           branches={branches}
                           save={save}
                           refresh={refresh}

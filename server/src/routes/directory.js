@@ -127,11 +127,25 @@ router.get("/users", manage, (req, res, next) => {
 router.post("/users", admin, (req, res, next) => {
   const email = text(req.body.email, "Email").toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail("Enter a valid email.");
-  const fullName = text(req.body.fullName, "Full name");
+  let firstName = typeof req.body.firstName === "string" ? text(req.body.firstName, "First name") : "";
+  let lastName = typeof req.body.lastName === "string" ? text(req.body.lastName, "Last name") : "";
+  // Accept the old fullName payload so existing clients can continue to create accounts.
+  if (!firstName || !lastName) {
+    const legacyName = text(req.body.fullName, "Full name");
+    const parts = legacyName.split(/\s+/);
+    firstName = parts.shift() || "";
+    lastName = parts.join(" ");
+  }
+  if (!/^[\p{L}][\p{L} .'-]{1,49}$/u.test(firstName))
+    fail("First name must contain 2-50 letters and valid name characters.");
+  if (!/^[\p{L}][\p{L} .'-]{1,49}$/u.test(lastName))
+    fail("Last name must contain 2-50 letters and valid name characters.");
+  const fullName = `${firstName} ${lastName}`;
   text(req.body.password, "Password");
   const password = req.body.password;
   if (password.length < 10) fail("Use at least 10 characters for passwords.");
   const role = text(req.body.role, "Role");
+  if (!["ADMIN", "MANAGER", "EMPLOYEE"].includes(role)) fail("Choose a valid role.");
   const branchId = text(req.body.branchId, "Branch");
   Branch.findById(branchId)
     .then((branch) => {
@@ -139,7 +153,15 @@ router.post("/users", admin, (req, res, next) => {
       return hashPassword(password);
     })
     .then((passwordHash) =>
-      User.create({ email, fullName, role, branchId, passwordHash }),
+      User.create({
+        email,
+        firstName,
+        lastName,
+        fullName,
+        role,
+        branchId,
+        passwordHash,
+      }),
     )
     .then((user) => res.status(201).json(json(user)))
     .catch(next);
