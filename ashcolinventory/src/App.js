@@ -4,9 +4,11 @@ import {
   theme,
   Alert,
   Button,
+  Card,
   Select,
   Space,
   Spin,
+  Skeleton,
 } from "antd";
 import { api, errorMessage } from "./api";
 import LoginPage from "./components/LoginPage";
@@ -21,6 +23,26 @@ import SuppliersPage from "./components/SuppliersPage";
 import ServiceVansPage from "./components/ServiceVansPage";
 import "./App.css";
 
+function InventoryLoadingState() {
+  return (
+    <div className="inventory-loading" role="status" aria-live="polite">
+      <div className="loading-heading">
+        <Skeleton active title={{ width: 220 }} paragraph={{ rows: 1, width: 320 }} />
+      </div>
+      <div className="loading-metrics">
+        {[1, 2, 3, 4].map((item) => (
+          <Card key={item} className="loading-card">
+            <Skeleton active title={{ width: "42%" }} paragraph={{ rows: 1, width: "68%" }} />
+          </Card>
+        ))}
+      </div>
+      <Card className="loading-table-card">
+        <Skeleton active title={{ width: "28%" }} paragraph={{ rows: 6 }} />
+      </Card>
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
@@ -33,6 +55,7 @@ export default function App() {
   const [requests, setRequests] = useState([]);
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
   const [targetId, setTargetId] = useState("");
@@ -88,6 +111,7 @@ export default function App() {
   useEffect(() => {
     if (!user || !branchId) return;
     let active = true;
+    setDataReady(false);
     setLoading(true);
     setError("");
     Promise.all([
@@ -100,12 +124,14 @@ export default function App() {
           setItems(stock.data);
           setBrands(brandList.data);
           setRequests(requestList.data);
+          setDataReady(true);
         }
       })
       .catch((err) => {
         if (active) {
           setItems([]);
           setRequests([]);
+          setDataReady(false);
           setError(errorMessage(err));
           if (err.response && err.response.status === 401) {
             sessionStorage.removeItem("ashcol_inventory_token");
@@ -146,6 +172,7 @@ export default function App() {
         setItems([]);
         setRequests([]);
         setBranches([]);
+        setDataReady(false);
         setError("");
         setNotice(null);
         setPage("dashboard");
@@ -294,7 +321,10 @@ export default function App() {
                 )}
                 <Spin spinning={loading}>
                   {!error && branchId && (
-                    <div key={branchId}>
+                    loading && !dataReady ? (
+                      <InventoryLoadingState />
+                    ) : (
+                    <div className="page-transition" key={`${page}-${branchId}`}>
                       {page === "dashboard" && (
                         <DashboardPage
                           items={items}
@@ -389,6 +419,7 @@ export default function App() {
                         />
                       )}
                     </div>
+                    )
                   )}
                 </Spin>
               </main>
