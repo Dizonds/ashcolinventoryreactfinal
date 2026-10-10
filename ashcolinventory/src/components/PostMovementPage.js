@@ -11,6 +11,7 @@ import {
   Statistic,
   Space,
 } from "antd";
+import { ShopBoldDuotoneIcon } from "@solar-icons/react";
 import { errorMessage } from "../api";
 
 const isContinuousUnit = (unit) =>
@@ -162,7 +163,12 @@ export default function PostMovementPage({
                     )
                     .map((branch) => ({
                       value: branch.id,
-                      label: `🏢 ${branch.name} (${branch.id})`,
+                      label: (
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <ShopBoldDuotoneIcon size={16} />
+                          {branch.name} ({branch.id})
+                        </span>
+                      ),
                     }))}
                 />
               </label>

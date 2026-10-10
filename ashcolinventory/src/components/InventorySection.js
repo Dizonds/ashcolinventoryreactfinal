@@ -15,6 +15,7 @@ import {
   Typography,
   Descriptions,
 } from "antd";
+import { BusBoldDuotoneIcon } from "@solar-icons/react";
 import { api, errorMessage } from "../api";
 import { formatMoney } from "../utils/formatters";
 
@@ -274,6 +275,7 @@ export default function InventorySection({
             <Button
               size="small"
               type="dashed"
+              icon={<BusBoldDuotoneIcon size={14} />}
               onClick={() => {
                 setLoadVanItem(item);
                 setSelectedVanId(serviceVans[0]?.id || "");
@@ -282,7 +284,7 @@ export default function InventorySection({
                 setLoadError("");
               }}
             >
-              🚐 Add to Vehicle
+              Add to Vehicle
             </Button>
           )}
           {canManage && (
@@ -722,7 +724,7 @@ export default function InventorySection({
 
       <Modal
         open={Boolean(loadVanItem)}
-        title={loadVanItem ? `🚐 Load to Service Vehicle: ${loadVanItem.name}` : ""}
+        title={loadVanItem ? <span style={{ display: "flex", alignItems: "center", gap: 8 }}><BusBoldDuotoneIcon size={20}/>Load to Service Vehicle: {loadVanItem.name}</span> : ""}
         onCancel={() => setLoadVanItem(null)}
         footer={null}
         destroyOnClose
@@ -780,7 +782,12 @@ export default function InventorySection({
                 style={{ width: "100%", marginTop: 4 }}
                 options={serviceVans.map((van) => ({
                   value: van.id,
-                  label: `🚐 ${van.name} (${van.plateNumber ? `${van.plateNumber} · ` : ""}${van.status})`,
+                  label: (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <BusBoldDuotoneIcon size={16} />
+                      {van.name} ({van.plateNumber ? `${van.plateNumber} · ` : ""}{van.status})
+                    </span>
+                  ),
                 }))}
               />
             </label>

@@ -21,6 +21,19 @@ import SettingsPage from "./components/SettingsPage";
 import CompatibilityLookupPage from "./components/CompatibilityLookupPage";
 import SuppliersPage from "./components/SuppliersPage";
 import ServiceVansPage from "./components/ServiceVansPage";
+import {
+  Widget5BoldDuotoneIcon,
+  BoxBoldDuotoneIcon,
+  BusBoldDuotoneIcon,
+  ScannerBoldDuotoneIcon,
+  BuildingsBoldDuotoneIcon,
+  CartLargeBoldDuotoneIcon,
+  TransferVerticalBoldDuotoneIcon,
+  ClipboardListBoldDuotoneIcon,
+  MapPointBoldDuotoneIcon,
+  UsersGroupTwoRoundedBoldDuotoneIcon,
+  ShopBoldDuotoneIcon
+} from "@solar-icons/react";
 import "./App.css";
 
 function InventoryLoadingState() {
@@ -186,18 +199,18 @@ export default function App() {
       });
   }
   const navigation = [
-    { id: "dashboard", label: "Overview" },
-    { id: "inventory", label: "Inventory Catalog" },
-    { id: "service_vehicles", label: "Service Vehicles" },
-    { id: "compatibility", label: "Model Matching" },
-    { id: "suppliers", label: "Suppliers & Vendors" },
-    { id: "requests", label: "Material Requests" },
-    ...(canManage ? [{ id: "post_movement", label: "Post Movement" }] : []),
-    { id: "movements", label: "Stock Ledger" },
+    { id: "dashboard", label: "Overview", icon: <Widget5BoldDuotoneIcon size={22} /> },
+    { id: "inventory", label: "Inventory Catalog", icon: <BoxBoldDuotoneIcon size={22} /> },
+    { id: "service_vehicles", label: "Service Vehicles", icon: <BusBoldDuotoneIcon size={22} /> },
+    { id: "compatibility", label: "Model Matching", icon: <ScannerBoldDuotoneIcon size={22} /> },
+    { id: "suppliers", label: "Suppliers & Vendors", icon: <BuildingsBoldDuotoneIcon size={22} /> },
+    { id: "requests", label: "Material Requests", icon: <CartLargeBoldDuotoneIcon size={22} /> },
+    ...(canManage ? [{ id: "post_movement", label: "Post Movement", icon: <TransferVerticalBoldDuotoneIcon size={22} /> }] : []),
+    { id: "movements", label: "Stock Ledger", icon: <ClipboardListBoldDuotoneIcon size={22} /> },
     ...(user && user.role === "ADMIN"
       ? [
-          { id: "branches", label: "Branches" },
-          { id: "user_management", label: "User Management" },
+          { id: "branches", label: "Branches", icon: <MapPointBoldDuotoneIcon size={22} /> },
+          { id: "user_management", label: "User Management", icon: <UsersGroupTwoRoundedBoldDuotoneIcon size={22} /> },
         ]
       : []),
   ];
@@ -265,6 +278,8 @@ export default function App() {
                     key={entry.id}
                     type={page === entry.id ? "primary" : "text"}
                     onClick={() => setPage(entry.id)}
+                    icon={entry.icon}
+                    style={{ justifyContent: "flex-start", padding: "10px 16px", height: "auto" }}
                   >
                     {entry.label}
                   </Button>
@@ -283,7 +298,12 @@ export default function App() {
                         .filter((branch) => branch.branchType !== "SERVICE_VAN")
                         .map((branch) => ({
                           value: branch.id,
-                          label: `🏢 ${branch.name} (${branch.id})`,
+                          label: (
+                            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <ShopBoldDuotoneIcon size={16} />
+                              {branch.name} ({branch.id})
+                            </span>
+                          ),
                         }))}
                       onChange={(value) => {
                         setBranchId(value);

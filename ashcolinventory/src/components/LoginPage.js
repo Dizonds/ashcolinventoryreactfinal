@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Card, Input, Button, Alert, Typography } from "antd";
+import { ShieldKeyholeBoldDuotoneIcon, UsersGroupTwoRoundedBoldDuotoneIcon, UserBoldDuotoneIcon } from "@solar-icons/react";
 import { api, errorMessage } from "../api";
 
 export default function LoginPage({ onLogin, initialError }) {
@@ -93,10 +94,10 @@ export default function LoginPage({ onLogin, initialError }) {
             {accountsToDisplay.map((acc) => {
               const icon =
                 acc.role === "ADMIN"
-                  ? "👑"
+                  ? <ShieldKeyholeBoldDuotoneIcon size={14} style={{ marginRight: 4 }} />
                   : acc.role === "MANAGER"
-                    ? "🏢"
-                    : "🔧";
+                    ? <UsersGroupTwoRoundedBoldDuotoneIcon size={14} style={{ marginRight: 4 }} />
+                    : <UserBoldDuotoneIcon size={14} style={{ marginRight: 4 }} />;
               return (
                 <Button
                   key={acc.email}
@@ -105,9 +106,10 @@ export default function LoginPage({ onLogin, initialError }) {
                     setEmail(acc.email);
                     setPassword(acc.password || "hatdog@hat.com");
                   }}
-                  title={acc.email}
                 >
-                  {icon} {acc.fullName.split(" ")[0]} ({acc.role})
+                  <span style={{ display: "flex", alignItems: "center" }}>
+                    {icon} {acc.fullName.split(" ")[0]} ({acc.role})
+                  </span>
                 </Button>
               );
             })}

@@ -13,6 +13,7 @@ import {
   Alert,
   Empty,
 } from "antd";
+import { BusBoldDuotoneIcon } from "@solar-icons/react";
 import { api, errorMessage } from "../api";
 
 export default function ServiceVansPage({
@@ -159,7 +160,7 @@ export default function ServiceVansPage({
 
   return (
     <Card
-      title="🚐 Mobile Service Vehicles Inventory & Field Tracking"
+      title={<span style={{ display: "flex", alignItems: "center", gap: 8 }}><BusBoldDuotoneIcon size={22} /> Mobile Service Vehicles Inventory & Field Tracking</span>}
       extra={
         <Space wrap>
           <strong>Select Vehicle:</strong>
@@ -169,7 +170,12 @@ export default function ServiceVansPage({
             style={{ minWidth: 260 }}
             options={serviceVans.map((van) => ({
               value: van.id,
-              label: `🚐 ${van.name} (${van.plateNumber ? `${van.plateNumber} · ` : ""}${van.status})`,
+              label: (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <BusBoldDuotoneIcon size={16} />
+                  {van.name} ({van.plateNumber ? `${van.plateNumber} · ` : ""}{van.status})
+                </span>
+              ),
             }))}
           />
           {isAdmin && (
@@ -436,7 +442,7 @@ export default function ServiceVansPage({
       {/* Register new Service Vehicle Modal */}
       <Modal
         open={newVanModal}
-        title="🚐 Register New Service Vehicle"
+        title={<span style={{ display: "flex", alignItems: "center", gap: 8 }}><BusBoldDuotoneIcon size={20} />Register New Service Vehicle</span>}
         onCancel={() => setNewVanModal(false)}
         footer={null}
         destroyOnClose
